@@ -28,6 +28,18 @@ local function NewSession(options)
         "SetWordWrap", "SetNonSpaceWrap", "SetTextColor", "SetShadowColor", "SetShadowOffset" }) do
         Frame[method] = function() end
     end
+    function Frame:EnableMouseMotion(value) self.mouseMotion = value end
+    function Frame:SetClampedToScreen(value) self.clamped = value end
+    function Frame:SetOwner(owner) self.owner = owner end
+    function Frame:ClearLines() self.lines = {} end
+    function Frame:AddLine(text) self.lines[#self.lines + 1] = { text } end
+    function Frame:AddDoubleLine(left, right) self.lines[#self.lines + 1] = { left, right } end
+    function Frame:Show() self.shown = true end
+    function Frame:Hide()
+        local wasShown = self.shown
+        self.shown = false
+        if wasShown and self.scripts.OnHide then self.scripts.OnHide(self) end
+    end
     function Frame:SetPoint(...)
         local point = { ... }
         for index, previous in ipairs(self.points) do
@@ -68,9 +80,9 @@ local function NewSession(options)
             callback(...)
         end
     end
-    function Frame:GetWidth() return state.width or 1920 end
+    function Frame:GetWidth() return self.width or state.width or 1920 end
     function Frame:SetFont(path, size) self.font, self.fontSize = path, size end
-    function Frame:GetFont() return "Fonts\\FRIZQT__.TTF", 12, "" end
+    function Frame:GetFont() return "Fonts\\FRIZQT__.TTF", self.fontSize or 12, "" end
     function Frame:SetText(text) self.text = text end
     function Frame:GetUnboundedStringWidth()
         local plain = self.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
@@ -91,7 +103,7 @@ local function NewSession(options)
     env.C_Timer = {
         After = function(_, callback) state.timers[#state.timers + 1] = callback end,
         NewTicker = function(interval, callback)
-            local ticker = { interval = interval, callback = callback }
+            local ticker = { interval = interval, callback = callback, Cancel = function(self) self.cancelled = true end }
             state.tickers[#state.tickers + 1] = ticker
             return ticker
         end,
@@ -99,6 +111,11 @@ local function NewSession(options)
     env.GetTime = function() return state.now end
     env.GetServerTime = function() return state.wallTime + math.floor(state.now) end
     env.date = function(format, timestamp) return os.date("!" .. format, timestamp or state.wallTime + math.floor(state.now)) end
+    env.COMBATLOG_XPGAIN_FIRSTPERSON = "%s dies, you gain %d experience."
+    env.COMBATLOG_XPGAIN_FIRSTPERSON_GROUP = "%s dies, you gain %d experience. (+%d group bonus)"
+    env.COMBATLOG_XPGAIN_FIRSTPERSON_QUEST = "Quest %s rewards %d experience."
+    env.GetXPExhaustion = function() return 500 end
+    env.GetGameTime = function() return 18, 30 end
     env.UnitXP = function() return state.xp end
     env.UnitXPMax = function() return state.cap end
     env.UnitLevel = function() return state.level end
@@ -174,7 +191,7 @@ local function NewSession(options)
     end
     function state:tick(seconds)
         self.now = self.now + seconds
-        for _, ticker in ipairs(self.tickers) do ticker.callback() end
+        for _, ticker in ipairs(self.tickers) do if not ticker.cancelled then ticker.callback() end end
         Drain()
     end
     state.drain = Drain
@@ -573,4 +590,79 @@ equal(#state.messages, 1, "Warn if native storage silently truncates data")
 state:refresh("PLAYER_LOGOUT")
 equal(#state.messages, 1, "Cache failures do not spam chat")
 equal(modules.Bags.text, "Bags: 78/80", "Native cache failure does not break other providers")
+-- Hover lifecycle, live data, kill parsing, and independent provider failures.
+state, addon, modules, env = NewSession()
+local function Row(label)
+    for _, line in ipairs(addon.infoTooltip.lines) do
+        if line[1] == label then return line[2] end
+    end
+end
+local function Hover(name)
+    local region = modules[name].hoverFrame
+    region.scripts.OnEnter(region)
+end
+for name, module in pairs(modules) do
+    equal(module.hoverFrame.mouse, false, name .. " does not intercept clicks")
+    equal(module.hoverFrame.mouseMotion, true)
+    Hover(name)
+    equal(addon.infoTooltip.shown, true)
+    equal(addon.infoTooltip.lines[2][1] ~= "Details currently unavailable.", true, name .. " tooltip renders")
+end
+Hover("Experience")
+equal(Row("Kills to level (last kill)"), "Unknown")
+equal(Row("XP gains to level (last gain)"), "Unknown")
+equal(Row("Rested XP available"), "500")
+equal(Row("XP/hour this session"), "N/A")
+state:refresh("CHAT_MSG_COMBAT_XP_GAIN", "Unit 9000 dies, you gain 25 experience. (+5 group bonus)")
+equal(modules.Experience.lastKillXP, 25, "Digits in creature names are not XP")
+equal(modules.Experience.gained, 0, "Kill chat never double counts XP")
+state.xp = 925
+state:refresh("PLAYER_XP_UPDATE", "player")
+state:tick(60)
+equal(Row("Time played this session"), "1m 0s")
+equal(Row("Kills to level (last kill)"), "3")
+equal(Row("XP gains to level (last gain)"), "3")
+equal(Row("XP/hour this session"), "1,500")
+equal(Row("Time to level (session rate)"), "3m 0s")
+state:refresh("CHAT_MSG_COMBAT_XP_GAIN", "Quest Example rewards 500 experience.")
+equal(modules.Experience.lastKillXP, 25, "Quest messages do not become kills")
+state.xp, state.level, state.cap = 25, 11, 1200
+state:refresh("PLAYER_XP_UPDATE", "player")
+addon:RefreshInfoTooltip()
+equal(Row("Last XP gain"), "100", "XP award across level boundary")
+equal(Row("XP gains to level (last gain)"), "12", "Round remaining gains up")
+local ticker = addon.tooltipTicker
+modules.Experience.hoverFrame.scripts.OnLeave()
+equal(addon.infoTooltip.shown, false)
+equal(ticker.cancelled, true, "Stop tooltip polling on leave")
+equal(addon.tooltipTicker, nil)
+Hover("Clock")
+equal(Row("Realm time"), "18:30")
+equal(select(1, addon.infoTooltip:GetPoint(1)), "TOPRIGHT", "Right tooltip expands inward")
+Hover("Pedometer")
+equal(Row("All recorded travel"), "0 yd")
+equal(next(env.ToplineCharDB.pedometer.days), nil, "Hover does not create history")
+Hover("Durability")
+equal(Row("Slot 1"), "50 / 100 (50%)")
+Hover("Bags")
+equal(Row("Backpack"), "14 / 16 (2 free)")
+modules.Bags.tooltip = function() error("broken provider") end
+addon:RefreshInfoTooltip()
+equal(addon.infoTooltip.lines[2][1], "Details currently unavailable.")
+Hover("Zone")
+equal(Row("Zone"), "Shattrath City", "Next tooltip survives provider error")
+state.width = 500
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(modules.Pedometer.hoverFrame.shown, false, "Clipped text has no stray hover region")
+equal(modules.Clock.hoverFrame.shown, true)
+equal(modules.Experience.hoverFrame.width <= addon.text.width, true)
+state, addon, modules = NewSession({ COMBATLOG_XPGAIN_FIRSTPERSON = "%2$d XP from %1$s." })
+equal(modules.Experience.ParseKillXP("42 XP from Unit 9000."), 42, "Localized positional placeholders")
+state, addon, modules = NewSession({ UnitXP = false, GetXPExhaustion = false })
+Hover("Experience")
+equal(addon.infoTooltip.lines[5][1], "XP information unavailable.")
+state, addon, modules = NewSession()
+state.level, state.cap = 60, 0
+Hover("Experience")
+equal(addon.infoTooltip.lines[5][1], "Maximum level reached.")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

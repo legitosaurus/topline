@@ -3,6 +3,13 @@ local floor = math.floor
 
 Topline:RegisterModule("Zone", {
     order = 10,
+    tooltip = function(self, tip)
+        tip:AddLine("Location", 1, 0.82, 0)
+        Topline:TooltipRow(tip, "Zone", GetZoneText and GetZoneText())
+        local subzone = GetSubZoneText and GetSubZoneText()
+        Topline:TooltipRow(tip, "Subzone", subzone and subzone ~= "" and subzone or "None")
+        Topline:TooltipRow(tip, "Map coordinates", self.x and string.format("%d, %d", self.x, self.y) or "Unavailable here")
+    end,
     events = { "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA" },
     interval = 0.5,
     update = function(self, event)

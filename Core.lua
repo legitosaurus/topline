@@ -5,6 +5,10 @@ local byName, listeners = {}, {}
 local frame = CreateFrame("Frame")
 local started, renderPending = false, false
 
+function Topline:GetModule(name)
+    return byName[name]
+end
+
 function Topline:RegisterModule(name, module)
     assert(not started and not byName[name], "Topline: duplicate or late module registration")
     module.name = name

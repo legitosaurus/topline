@@ -19,7 +19,7 @@ addon does not appear, restart the client so it discovers the folder.
   at the bar's thin height. Artwork uses a neutral white tint; a soft lower shadow
   finishes the edge. Native small font and muted
   pipe separators keep the text readable. See `Media/README.md` for asset provenance.
-  It inherits UI scale and does not intercept mouse input.
+  It inherits UI scale; transparent hover regions receive mouse motion without blocking clicks on this client.
 - The layout helper reserves the strip's height plus two UI units of clearance
   by translating overlapping Blizzard buffs, debuffs, minimap, player, target,
   focus, and objective tracker frames below it. It preserves their relative
@@ -66,6 +66,21 @@ The far right shows a local-time clock (`Local 6:46 PM`), refreshed every ten
 seconds. A separate right-aligned text region reserves space for it even when the
 left-side information grows. Providers can opt into that region with `side = "right"`.
 
+## Hover details
+
+Hover any item for a native WoW tooltip below the strip. The XP popup shows
+session duration, session XP, current level progress, remaining and rested XP,
+last kill XP, last observed XP gain, kills/gains to level, XP/hour, and time to
+level. Kill estimates use localized named-kill chat formats; unidentified messages
+leave the estimate unknown. XP totals still come exclusively from player XP
+changes. Simultaneous awards can combine into one observed gain. No automatic
+`/played` request is made, so lifetime played and full-level rates are not claimed.
+
+Other tooltips show location, carried money, occupied/free slots per bag,
+individual equipped-item durability, character travel history, and local/realm
+time. Only the open tooltip refreshes once per second; leaving cancels its timer.
+Invisible hover regions follow measured text and shrink/clipping behavior.
+
 ## Pedometer persistence
 
 `ToplineCharDB` is declared with `SavedVariablesPerCharacter`. WoW stores it in
@@ -100,8 +115,8 @@ histories above 128 KiB also fall back to normal storage rather than being clipp
 Schema version 1 keeps `pedometer.days["YYYY-MM-DD"] = yards` and
 `pedometer.totalYards`. Fractions are preserved in storage and only the display is
 rounded down. Daily history is retained without pruning; idle days need no entry.
-The bar shows today only. Historical records and the all-time total are ready for
-a later history view, with no additional screen or command in this version.
+The bar shows today; its hover tooltip includes the session total, recorded lifetime
+total, and up to seven previous travel days. No additional screen or command is needed.
 
 Text can shrink from 12 to 10 UI units to fit smaller windows. Extremely narrow
 windows or long zone names can still truncate the line; it never wraps.
@@ -137,7 +152,7 @@ Inspected locally on 2026-09-23:
 first use at login, after WoW has loaded SavedVariables.
 `ReloadCache.lua` provides the Forever-only native reload checkpoint.
 `Core.lua` owns registration, event dispatch, provider error isolation, and
-coalesced redraws. `Bar.lua` owns presentation; `Layout.lua` manages top-edge
+coalesced redraws. `Bar.lua` owns presentation; `Tooltips.lua` owns hover regions and the shared tooltip; `Layout.lua` manages top-edge
 clearance. Each file in `Modules/` registers
 one provider through the private addon namespace supplied by WoW:
 
@@ -146,6 +161,10 @@ local _, Topline = ...
 Topline:RegisterModule("Example", {
     order = 70,
     events = { "SOME_EVENT" },
+    tooltip = function(self, tip) -- optional
+        tip:AddLine("Example details")
+        Topline:TooltipRow(tip, "Value", "More information")
+    end,
     -- interval = 5, -- optional, only when events are insufficient
     update = function(self, event, ...)
         return "Example: value" -- nil leaves the previous text intact
@@ -170,7 +189,8 @@ Persistence checks cover same-day reloads, separate characters, live midnight
 rollover, retained history, fractional yards, and malformed saved data.
 They also simulate the beta dropping SavedVariables while native CVars survive,
 including final logout flushes, stale/malformed checkpoints, and cold-start limits.
-Tests are not listed in the TOC and never load in game.
+Hover checks cover lifecycle, live refresh, localized kill parsing, estimates,
+clipping, and provider error isolation. Tests are not listed in the TOC and never load in game.
 
 The implementation passed Lua 5.1 parsing and the offline harness. In-game
 rendering and event timing still need confirmation: enable Topline, move between

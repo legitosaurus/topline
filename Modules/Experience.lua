@@ -29,10 +29,16 @@ end
 
 Topline:RegisterModule("Experience", {
     order = 20,
-    events = { "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP" },
+    events = { "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "CHAT_MSG_COMBAT_XP_GAIN" },
     interval = 5,
     update = function(self, event, unitOrLevel)
-        if event == "PLAYER_XP_UPDATE" then
+        if event == "CHAT_MSG_COMBAT_XP_GAIN" then
+            local killXP = self.ParseKillXP and self.ParseKillXP(unitOrLevel)
+            if killXP then
+                self.lastKillXP = killXP
+            end
+            return
+        elseif event == "PLAYER_XP_UPDATE" then
             if unitOrLevel and unitOrLevel ~= "player" then return end
             DeferSample(self)
             return
@@ -74,6 +80,9 @@ Topline:RegisterModule("Experience", {
                 delta = 0
             end
             self.gained = self.gained + math.max(0, delta)
+            if delta > 0 then
+                self.lastGain = delta
+            end
             self.lastXP, self.lastCap, self.lastLevel = xp, cap, level
         end
 

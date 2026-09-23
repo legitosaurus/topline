@@ -120,4 +120,5 @@ function Topline:RenderBar()
         -- Preserve a single readable line on small windows/high UI scales.
         self.text:SetFont(self.fontPath, math.max(10, 12 * available / width), "")
     end
+    self:LayoutHoverRegions(separator, math.max(0, available), rightWidth)
 end

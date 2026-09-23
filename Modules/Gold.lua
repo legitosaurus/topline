@@ -8,6 +8,11 @@ end
 Topline:RegisterModule("Gold", {
     order = 30,
     events = { "PLAYER_MONEY" },
+    tooltip = function(self, tip)
+        tip:AddLine("Money", 1, 0.82, 0)
+        Topline:TooltipRow(tip, "Current character", self.text)
+        tip:AddLine("Carried money; bank and other characters are excluded.", 0.65, 0.65, 0.65, true)
+    end,
     update = function()
         local money = GetMoney and GetMoney()
         if type(money) ~= "number" or money < 0 then return "Gold: N/A" end

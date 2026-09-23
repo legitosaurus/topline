@@ -21,6 +21,25 @@ end
 
 Topline:RegisterModule("Pedometer", {
     order = 60,
+    tooltip = function(self, tip)
+        tip:AddLine("Character travel", 1, 0.82, 0)
+        local history, today = Topline:GetTravelRecord()
+        if not history or not today then tip:AddLine("Travel history unavailable."); return end
+        Topline:TooltipRow(tip, "Today", Topline:Number(history.days[today] or 0) .. " yd")
+        Topline:TooltipRow(tip, "This session", Topline:Number(self.total or 0) .. " yd")
+        Topline:TooltipRow(tip, "All recorded travel", Topline:Number(history.totalYards) .. " yd")
+        local days = {}
+        for day in pairs(history.days) do if day < today then days[#days + 1] = day end end
+        table.sort(days, function(a, b) return a > b end)
+        if #days > 0 then
+            tip:AddLine(" ")
+            tip:AddLine("Recent travel days", 1, 0.82, 0)
+            for index = 1, math.min(7, #days) do
+                Topline:TooltipRow(tip, days[index], Topline:Number(history.days[days[index]]) .. " yd")
+            end
+        end
+        tip:AddLine("Days use local midnight. Includes mounted travel; excludes taxis and vehicles.", 0.65, 0.65, 0.65, true)
+    end,
     interval = 0.25,
     events = { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING", "PLAYER_LEAVING_WORLD" },
     update = function(self, event)
