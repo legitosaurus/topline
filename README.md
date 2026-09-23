@@ -12,10 +12,11 @@ addon does not appear, restart the client so it discovers the folder.
 
 ## Status items and layout
 
-- Full-width, 20 UI-unit strip anchored to UIParent's top edge; a warm charcoal
-  gradient, fine bronze top/bottom trim, inner bevel, and subtle lower shadow.
-  Trim stays one physical pixel at different scales, with a native small font
-  and muted pipe separators.
+- Full-width, 20 UI-unit strip anchored to UIParent's top edge; generated dark
+  leather and aged bronze moulding match the classic fantasy window frames.
+  A small 256x32 TGA tiles horizontally without stretching the grain; a crisp
+  bottom rule and soft lower shadow finish the edge. Native small font and muted
+  pipe separators keep the text readable. See `Media/README.md` for asset provenance.
   It inherits UI scale and does not intercept mouse input.
 - The layout helper reserves the strip's height plus two UI units of clearance
   by translating overlapping Blizzard buffs, debuffs, minimap, player, target,

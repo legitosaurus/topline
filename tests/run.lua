@@ -24,7 +24,7 @@ local function NewSession(options)
     local env = setmetatable({}, { __index = _G })
     env._G = env
     local Frame = {}
-    for _, method in ipairs({ "SetAllPoints", "SetColorTexture", "SetTexture", "SetGradient", "SetJustifyH", "SetJustifyV",
+    for _, method in ipairs({ "SetAllPoints", "SetColorTexture", "SetTexCoord", "SetTexture", "SetGradient", "SetJustifyH", "SetJustifyV",
         "SetWordWrap", "SetNonSpaceWrap", "SetTextColor", "SetShadowColor", "SetShadowOffset" }) do
         Frame[method] = function() end
     end
@@ -36,6 +36,11 @@ local function NewSession(options)
         self.points[#self.points + 1] = point
     end
     function Frame:GetNumPoints() return #self.points end
+    function Frame:SetTexture(path, horizontal, vertical)
+        self.texture, self.horizontalWrap, self.verticalWrap = path, horizontal, vertical
+        return true
+    end
+    function Frame:SetTexCoord(...) self.texCoords = { ... } end
     function Frame:GetPoint(index) return unpack(self.points[index]) end
     function Frame:ClearAllPoints() self.points = {} end
     function Frame:SetHeight(value) self.height = value end
@@ -183,6 +188,8 @@ equal(addon.modules[1].name, "Zone")
 equal(addon.modules[5].name, "Durability")
 equal(addon.bar.parent ~= nil, true)
 equal(addon.bar.height, 20)
+equal(addon.background.horizontalWrap, "REPEAT", "Repeat the material instead of stretching it")
+equal(addon.background.texCoords[2], 12, "Preserve the texture aspect ratio at 1920 UI units")
 equal(addon.bar.points[1][1], "TOPLEFT")
 equal(addon.bar.points[2][1], "TOPRIGHT")
 equal(addon.bar.mouse, false)
