@@ -36,6 +36,8 @@ local function NewSession(options)
         self.points[#self.points + 1] = point
     end
     function Frame:GetNumPoints() return #self.points end
+    function Frame:SetVertexColor(...) self.vertexColor = { ... } end
+    function Frame:SetWidth(value) self.width = value end
     function Frame:SetTexture(path, horizontal, vertical)
         self.texture, self.horizontalWrap, self.verticalWrap = path, horizontal, vertical
         return true
@@ -96,7 +98,7 @@ local function NewSession(options)
     }
     env.GetTime = function() return state.now end
     env.GetServerTime = function() return state.wallTime + math.floor(state.now) end
-    env.date = function(format, timestamp) return os.date("!" .. format, timestamp) end
+    env.date = function(format, timestamp) return os.date("!" .. format, timestamp or state.wallTime + math.floor(state.now)) end
     env.UnitXP = function() return state.xp end
     env.UnitXPMax = function() return state.cap end
     env.UnitLevel = function() return state.level end
@@ -183,7 +185,7 @@ local function NewSession(options)
 end
 
 local state, addon, modules = NewSession()
-equal(#addon.modules, 6, "Six requested providers load")
+equal(#addon.modules, 7, "Seven requested providers load")
 equal(addon.modules[1].name, "Zone")
 equal(addon.modules[5].name, "Durability")
 equal(addon.bar.parent ~= nil, true)
@@ -193,9 +195,9 @@ equal(addon.background.texCoords[2], 12, "Preserve the texture aspect ratio at 1
 equal(addon.bar.points[1][1], "TOPLEFT")
 equal(addon.bar.points[2][1], "TOPRIGHT")
 equal(addon.bar.mouse, false)
-equal(addon.bottom.height, 1.25, "One physical pixel separator")
+equal(addon.bottom.height, 3, "Bronze rail retains a readable height")
 for _, frame in ipairs(state.frames) do equal(frame.scripts.OnUpdate, nil) end
-equal(#state.tickers, 3, "Only coordinates, XP, and travel use tickers")
+equal(#state.tickers, 4, "Coordinates, XP, travel, and clock use tickers")
 equal(modules.Zone.text, "Zone: Shattrath City - Terrace of Light (57, 30)")
 equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A")
 equal(modules.Gold.text, "|cffe6c5663,198g|r |cffbfc5cd47s|r |cffcf956a57c|r")
@@ -250,7 +252,7 @@ state:refresh("ZONE_CHANGED_NEW_AREA")
 equal(modules.Zone.text, "Zone: Stormwind City", "No duplicate zone")
 state.scale = 1.25
 state:refresh("UI_SCALE_CHANGED")
-equal(addon.bottom.height, 0.8)
+equal(addon.bottom.height, 3)
 state.width = 800
 state:refresh("DISPLAY_SIZE_CHANGED")
 equal(addon.text.fontSize >= 10 and addon.text.fontSize <= 12, true)
@@ -488,4 +490,21 @@ local toc = tocFile:read("*a")
 tocFile:close()
 equal(toc:find("## SavedVariablesPerCharacter: ToplineCharDB", 1, true) ~= nil, true,
     "WoW persists data per character")
+state, addon, modules, env = NewSession()
+equal(addon.background.vertexColor[1], 1, "Artwork is not darkened by the fallback tint")
+equal(addon.bottom.texCoords[3], 0.91, "Show the complete bottom metal rail")
+equal(addon.topEdge.texCoords[4], 0.085, "Show the top metal rail separately")
+equal(modules.Clock.text, "Local 12:00 AM", "Local clock at midnight")
+equal(addon.rightText.text, modules.Clock.text, "Clock occupies the right group")
+equal(addon.text.text:find("Local", 1, true), nil, "Clock is not duplicated in the left group")
+equal(addon.text.width + addon.rightText.width + 44 <= addon.bar:GetWidth(), true,
+    "Reserve clock width and separation")
+state:tick(60)
+equal(modules.Clock.text, "Local 12:01 AM", "Clock updates without second-by-second rendering")
+state.width = 800
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(addon.text.width + addon.rightText.width + 44 <= addon.bar:GetWidth(), true,
+    "Narrow layout keeps right-side space reserved")
+state, addon, modules = NewSession({ date = false })
+equal(modules.Clock.text, "Local: N/A", "Missing clock API degrades gracefully")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

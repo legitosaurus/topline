@@ -14,8 +14,10 @@ addon does not appear, restart the client so it discovers the folder.
 
 - Full-width, 20 UI-unit strip anchored to UIParent's top edge; generated dark
   leather and aged bronze moulding match the classic fantasy window frames.
-  A small 256x32 TGA tiles horizontally without stretching the grain; a crisp
-  bottom rule and soft lower shadow finish the edge. Native small font and muted
+  A small 256x32 TGA tiles horizontally. Leather and bronze rails use separate
+  texture regions, keeping a two-unit top rail and three-unit bottom rail visible
+  at the bar's thin height. Artwork uses a neutral white tint; a soft lower shadow
+  finishes the edge. Native small font and muted
   pipe separators keep the text readable. See `Media/README.md` for asset provenance.
   It inherits UI scale and does not intercept mouse input.
 - The layout helper reserves the strip's height plus two UI units of clearance
@@ -59,6 +61,10 @@ addon does not appear, restart the client so it discovers the folder.
   UI reloads. Days follow the computer's local calendar, rolling over at midnight
   even while standing still; a segment crossing midnight belongs to its sample's
   date. Each character has separate daily history and an all-time total.
+
+The far right shows a local-time clock (`Local 6:46 PM`), refreshed every ten
+seconds. A separate right-aligned text region reserves space for it even when the
+left-side information grows. Providers can opt into that region with `side = "right"`.
 
 ## Pedometer persistence
 
