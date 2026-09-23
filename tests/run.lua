@@ -24,7 +24,7 @@ local function NewSession(options)
     local env = setmetatable({}, { __index = _G })
     env._G = env
     local Frame = {}
-    for _, method in ipairs({ "SetAllPoints", "SetColorTexture", "SetJustifyH", "SetJustifyV",
+    for _, method in ipairs({ "SetAllPoints", "SetColorTexture", "SetTexture", "SetGradient", "SetJustifyH", "SetJustifyV",
         "SetWordWrap", "SetNonSpaceWrap", "SetTextColor", "SetShadowColor", "SetShadowOffset" }) do
         Frame[method] = function() end
     end
