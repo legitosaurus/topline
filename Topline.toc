@@ -2,10 +2,11 @@
 ## Title: Topline
 ## Notes: A lightweight top-of-screen status strip for World of Warcraft: Forever.
 ## Author: Topline
-## Version: 0.3.3
+## Version: 0.3.4
 ## SavedVariablesPerCharacter: ToplineCharDB
 
 Core.lua
+ReloadCache.lua
 Storage.lua
 Bar.lua
 Layout.lua

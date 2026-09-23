@@ -74,6 +74,29 @@ The addon updates the in-memory table for each accepted movement sample; WoW
 writes it on normal logout, exit, or UI reload. A client crash can lose progress
 since the last save. Prior versions did not save travel and cannot be backfilled.
 
+### Forever beta reload workaround (0.3.4)
+
+The 1.60.1 beta can write valid SavedVariables but fail to read them on the next
+load. This can begin after a client restart even if reloads previously worked.
+See the [client bug report and CVar reproduction](https://eu.forums.blizzard.com/en/blizzard/t/classic-forever-beta-savedvariables-are-written-on-logoutreload-but-not-loaded-back-%E2%80%93-every-addon-loses-its-settings/17983).
+The persistence code was unchanged between Topline's initial commit and 0.3.3.
+
+On Forever builds, Topline now mirrors its travel history in a private temporary
+console variable keyed by character GUID. Writes are throttled to once per five
+seconds of movement, with an unconditional final checkpoint at `PLAYER_LOGOUT`
+(also fired by `/reload`). On login, daily/lifetime maxima merge the checkpoint
+with SavedVariables without double counting or rolling back newer disk data.
+No other addon or existing game-setting CVar is modified. The compact data is
+parsed as numbers and dates; it is never executed as Lua.
+
+This cache survives reloads/relogs **within one game launch only**. It cannot fix
+the beta's cold-start disk-loading bug or recover earlier overwritten history.
+The first reload after installing this version activates the cache; the old
+running version cannot checkpoint retroactively. A full client restart still
+depends on WoW restoring SavedVariables. Missing CVar APIs fall back to normal
+storage; a rejected/truncated checkpoint prints one diagnostic. Extremely large
+histories above 128 KiB also fall back to normal storage rather than being clipped.
+
 Schema version 1 keeps `pedometer.days["YYYY-MM-DD"] = yards` and
 `pedometer.totalYards`. Fractions are preserved in storage and only the display is
 rounded down. Daily history is retained without pruning; idle days need no entry.
@@ -112,6 +135,7 @@ Inspected locally on 2026-09-23:
 
 `Storage.lua` owns character history and daily date handling. It initializes on
 first use at login, after WoW has loaded SavedVariables.
+`ReloadCache.lua` provides the Forever-only native reload checkpoint.
 `Core.lua` owns registration, event dispatch, provider error isolation, and
 coalesced redraws. `Bar.lua` owns presentation; `Layout.lua` manages top-edge
 clearance. Each file in `Modules/` registers
@@ -144,6 +168,8 @@ It also tests movement totals, transport/teleport rejection, speed fallback, and
 layout drift, relative anchors, re-anchoring, combat, and Edit Mode handling.
 Persistence checks cover same-day reloads, separate characters, live midnight
 rollover, retained history, fractional yards, and malformed saved data.
+They also simulate the beta dropping SavedVariables while native CVars survive,
+including final logout flushes, stale/malformed checkpoints, and cold-start limits.
 Tests are not listed in the TOC and never load in game.
 
 The implementation passed Lua 5.1 parsing and the offline harness. In-game

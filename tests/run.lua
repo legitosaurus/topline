@@ -507,4 +507,70 @@ equal(addon.text.width + addon.rightText.width + 44 <= addon.bar:GetWidth(), tru
     "Narrow layout keeps right-side space reserved")
 state, addon, modules = NewSession({ date = false })
 equal(modules.Clock.text, "Local: N/A", "Missing clock API degrades gracefully")
+-- Model the actual beta failure: native CVars survive, SavedVariables do not.
+local nativeValues, nativeWrites = {}, 0
+local function ReloadOptions(guid, saved)
+    return {
+        UnitGUID = function() return guid end,
+        GetBuildInfo = function() return "1.60.1", "69977", "", 16001 end,
+        ToplineCharDB = saved,
+        C_CVar = {
+            GetCVar = function(key) return nativeValues[key] end,
+            RegisterCVar = function(key, value)
+                if nativeValues[key] == nil then nativeValues[key] = value end
+            end,
+            SetCVar = function(key, value)
+                nativeWrites = nativeWrites + 1
+                nativeValues[key] = value
+            end,
+        },
+    }
+end
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+local _, cacheDay = addon:GetTravelRecord()
+local initialWrites = nativeWrites
+state.worldX, state.speed = 101.25, 5
+state:tick(0.25)
+equal(nativeWrites, initialWrites, "Cache serialization is throttled during movement")
+state:refresh("PLAYER_LOGOUT")
+equal(nativeWrites, initialWrites + 1, "Logout/reload flushes the latest fractional distance")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.totalYards, 1.25, "Recover when the client drops all SavedVariables")
+equal(modules.Pedometer.text, "Moved today: 1 yd")
+state.worldX, state.speed = 100.75, 3
+state:tick(0.25)
+state:refresh("PLAYER_LOGOUT")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.totalYards, 2, "Repeated broken reloads continue accumulating")
+state:refresh("PLAYER_LOGOUT")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.totalYards, 2, "Restoring the same checkpoint never double counts")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-DEF456"))
+equal(env.ToplineCharDB.pedometer.totalYards, 0, "The native cache is isolated by character GUID")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123", {
+    version = 1, pedometer = { totalYards = 100, days = { [cacheDay] = 100 } },
+}))
+equal(env.ToplineCharDB.pedometer.totalYards, 100, "Older cache cannot roll back newer disk history")
+state.wallTime = state.wallTime + 86400
+state:tick(0.25)
+state.speed, state.worldX = 4, 101
+state:tick(0.25)
+state:refresh("PLAYER_LOGOUT")
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.days[cacheDay], 100, "Cached daily history survives midnight")
+equal(env.ToplineCharDB.pedometer.totalYards, 101, "Cache preserves the lifetime total")
+nativeValues.ToplineTravel_Player_70_ABC123 = "1|999|2026-09-23=123|invalid"
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.totalYards, 0, "Malformed cache is rejected atomically")
+equal(next(env.ToplineCharDB.pedometer.days), nil)
+nativeValues = {}
+state, addon, modules, env = NewSession(ReloadOptions("Player-70-ABC123"))
+equal(env.ToplineCharDB.pedometer.totalYards, 0, "Cold start still requires the disk loader")
+local brokenCacheOptions = ReloadOptions("Player-70-ABC123")
+brokenCacheOptions.C_CVar.SetCVar = function(key, value) nativeValues[key] = value:sub(1, 2) end
+state, addon, modules, env = NewSession(brokenCacheOptions)
+equal(#state.messages, 1, "Warn if native storage silently truncates data")
+state:refresh("PLAYER_LOGOUT")
+equal(#state.messages, 1, "Cache failures do not spam chat")
+equal(modules.Bags.text, "Bags: 78/80", "Native cache failure does not break other providers")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

@@ -43,6 +43,8 @@ function Topline:GetTravelRecord()
             history.totalYards = sum
         end
         self.travelHistory = history
+        self:RestoreReloadCache(history)
+        self:SaveReloadCache(true)
     end
     return self.travelHistory, Today()
 end
@@ -55,4 +57,5 @@ function Topline:RecordTravel(yards)
     -- the live SavedVariables table as we go, without a logout-time accumulator.
     history.days[day] = (history.days[day] or 0) + yards
     history.totalYards = history.totalYards + yards
+    self:SaveReloadCache(false)
 end
