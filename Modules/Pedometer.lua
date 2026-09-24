@@ -1,6 +1,11 @@
 local _, Topline = ...
 local sqrt, max, floor = math.sqrt, math.max, math.floor
 
+local function IsRestricted(value)
+    if issecretvalue and issecretvalue(value) then return true end
+    return canaccessvalue and not canaccessvalue(value)
+end
+
 local function ResetPosition(self)
     self.x, self.y, self.instance, self.time, self.speed = nil, nil, nil, nil, nil
 end
@@ -52,17 +57,25 @@ Topline:RegisterModule("Pedometer", {
             self.loading = false
             ResetPosition(self)
         end
-        if self.loading or (UnitOnTaxi and UnitOnTaxi("player"))
-            or (UnitInVehicle and UnitInVehicle("player")) then
+        local taxi = UnitOnTaxi and UnitOnTaxi("player")
+        local vehicle = UnitInVehicle and UnitInVehicle("player")
+        if self.loading or IsRestricted(taxi) or IsRestricted(vehicle) or taxi or vehicle then
             ResetPosition(self)
             return Display(self, true)
         end
         if not GetTime then return Display(self, false) end
         local now = GetTime()
         local speed = GetUnitSpeed and GetUnitSpeed("player")
-        if type(speed) ~= "number" or speed < 0 then speed = nil end
         local x, y, _, instance
         if UnitPosition then x, y, _, instance = UnitPosition("player") end
+        -- Secret values still report type "number". Check access before any
+        -- comparison/arithmetic, and never bridge travel across a restricted gap.
+        if IsRestricted(now) or IsRestricted(speed) or IsRestricted(x)
+            or IsRestricted(y) or IsRestricted(instance) then
+            ResetPosition(self)
+            return Display(self, true)
+        end
+        if type(speed) ~= "number" or speed < 0 then speed = nil end
         local hasPosition = type(x) == "number" and type(y) == "number"
             and type(instance) == "number"
         if not hasPosition then x, y, instance = nil, nil, nil end

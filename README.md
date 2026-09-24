@@ -54,7 +54,9 @@ addon does not appear, restart the client so it discovers the folder.
   Walking, running, swimming, and ordinary mounted travel count. This measures
   distance, not animation footsteps. Taxi and vehicle rides do not count.
   Loading screens, coordinate-space changes, long sampling gaps, and implausible
-  jumps are excluded. Curved paths between samples can slightly undercount.
+  jumps are excluded. Restricted (secret) movement values pause sampling while
+  preserving recorded totals; the next readable sample starts a fresh baseline.
+  Travel during that gap cannot be counted. Curved paths between samples can slightly undercount.
   Where world positions are unavailable (including some instances), actual
   movement speed provides an estimate instead. Tiny teleports cannot always be
   distinguished from ordinary movement. Today's distance survives logins and

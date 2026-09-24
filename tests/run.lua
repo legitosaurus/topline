@@ -665,4 +665,48 @@ state, addon, modules = NewSession()
 state.level, state.cap = 60, 0
 Hover("Experience")
 equal(addon.infoTooltip.lines[5][1], "Maximum level reached.")
+-- Lua 5.1 has no secret values. An opaque sentinel plus an overridden type()
+-- models the key failure: a value can report "number" yet reject arithmetic.
+local secret = setmetatable({}, {
+    __lt = function() error("secret comparison") end,
+    __le = function() error("secret comparison") end,
+    __sub = function() error("secret arithmetic") end,
+})
+local function SecretOptions(accessOnly)
+    return {
+        type = function(value) if rawequal(value, secret) then return "number" end return type(value) end,
+        issecretvalue = not accessOnly and function(value) return rawequal(value, secret) end or false,
+        canaccessvalue = function(value) return not rawequal(value, secret) end,
+    }
+end
+for _, field in ipairs({ "speed", "worldX", "worldY", "instance", "taxi", "vehicle" }) do
+    state, addon, modules, env = NewSession(SecretOptions(field == "speed"))
+    state.speed, state.worldX = 8, 102
+    state:tick(0.25)
+    local prior = state[field]
+    state[field] = secret
+    state:tick(0.25)
+    equal(#state.messages, 0, field .. " restriction produces no provider error")
+    equal(modules.Pedometer.total, 2, "Keep earned distance")
+    equal(modules.Pedometer.text, "Moved today: 2 yd")
+    equal(modules.Pedometer.time, nil, "Clear sampling baseline")
+    equal(env.ToplineCharDB.pedometer.totalYards, 2, "Never save restricted data")
+    state[field] = prior
+    state.worldX = 104
+    state:tick(0.25)
+    equal(modules.Pedometer.total, 2, "Do not connect positions across restricted gap")
+    state.worldX = 106
+    state:tick(0.25)
+    equal(modules.Pedometer.total, 4, "Resume on ordinary samples")
+end
+state, addon, modules, env = NewSession(SecretOptions())
+env.UnitPosition = false
+state.speed = secret
+state:tick(0.25)
+equal(#state.messages, 0, "Restricted speed cannot enter the fallback estimator")
+equal(modules.Pedometer.total, 0)
+state.speed = 8
+state:tick(0.25)
+state:tick(0.25)
+equal(modules.Pedometer.total, 2, "Speed fallback resumes after restriction")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
