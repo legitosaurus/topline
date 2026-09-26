@@ -61,7 +61,7 @@ function Topline:CreateBar()
 
     local right = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     right:SetPoint("RIGHT", -10, 0)
-    right:SetJustifyH("RIGHT")
+    right:SetJustifyH("LEFT")
     right:SetJustifyV("MIDDLE")
     right:SetWordWrap(false)
     right:SetNonSpaceWrap(false)
@@ -113,17 +113,46 @@ function Topline:RenderBar()
             end
         end
     end
-    self.rightText:SetText(table.concat(rightPieces, separator, 1, rightCount))
-    local rightWidth = self.rightText:GetUnboundedStringWidth()
-    self.rightText:SetWidth(rightWidth)
-    self.text:SetFont(self.fontPath, 12, "")
     self.text:SetText(table.concat(pieces, separator, 1, leftCount))
-    local available = self.bar:GetWidth() - 20 - (rightCount > 0 and rightWidth + 24 or 0)
-    self.text:SetWidth(math.max(1, available))
-    local width = self.text:GetUnboundedStringWidth()
-    if available > 0 and width > available then
-        -- Preserve a single readable line on small windows/high UI scales.
-        self.text:SetFont(self.fontPath, math.max(10, 12 * available / width), "")
+    self.rightText:SetText(table.concat(rightPieces, separator, 1, rightCount))
+    local barWidth = math.max(0, self.bar:GetWidth())
+    local padding = math.min(10, barWidth / 2)
+    local innerWidth = math.max(0, barWidth - padding * 2)
+    local gap = leftCount > 0 and rightCount > 0 and math.min(24, innerWidth * 0.1) or 0
+    local budget = innerWidth - gap
+    self.contentPadding = padding
+    self.text:ClearAllPoints()
+    self.text:SetPoint("LEFT", padding, 0)
+    self.rightText:ClearAllPoints()
+    self.rightText:SetPoint("RIGHT", -padding, 0)
+
+    -- Shrink both groups together, retaining a readable minimum. Re-measure at
+    -- the final font size because embedded icons do not scale with the text.
+    self.text:SetFont(self.fontPath, 12, "")
+    self.rightText:SetFont(self.fontPath, 12, "")
+    local leftNatural = self.text:GetUnboundedStringWidth()
+    local rightNatural = self.rightText:GetUnboundedStringWidth()
+    local total = leftNatural + rightNatural
+    if total > budget and total > 0 then
+        local size = math.max(10, 12 * budget / total)
+        self.text:SetFont(self.fontPath, size, "")
+        self.rightText:SetFont(self.fontPath, size, "")
+        leftNatural = self.text:GetUnboundedStringWidth()
+        rightNatural = self.rightText:GetUnboundedStringWidth()
     end
-    self:LayoutHoverRegions(separator, math.max(0, available), rightWidth)
+
+    local leftWidth, rightWidth = leftNatural, rightNatural
+    if leftNatural + rightNatural > budget then
+        -- A small group keeps its natural width. If both are crowded, neither
+        -- can consume more than half until the other group's needs are met.
+        leftWidth = math.min(leftNatural, math.max(budget / 2, budget - rightNatural))
+        rightWidth = math.min(rightNatural, math.max(0, budget - leftWidth))
+    end
+    self.text:SetWidth(math.max(1, leftWidth))
+    self.rightText:SetWidth(math.max(1, rightWidth))
+    if leftWidth > 0 then self.text:Show() else self.text:Hide() end
+    if rightWidth > 0 then self.rightText:Show() else self.rightText:Hide() end
+    -- Right text is left-justified inside a right-anchored box, so clipping and
+    -- hover measurements both keep the leading items of either group.
+    self:LayoutHoverRegions(separator, leftWidth, rightWidth)
 end

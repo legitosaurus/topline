@@ -59,7 +59,7 @@ function Topline:ShowInfoTooltip(module)
     end
 end
 
--- Keep the continuous text layout; transparent motion-only regions follow the
+-- Keep the continuous text layout; transparent mouse regions follow the
 -- measured text, including its font size and clipping in a narrow window.
 function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
     if not measure then
@@ -100,7 +100,8 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
                 end
                 local region = module.hoverFrame
                 if visible > 0 then
-                    local x = right and self.bar:GetWidth() - 10 - rightWidth + offset or 10 + offset
+                    local padding = self.contentPadding or 10
+                    local x = right and self.bar:GetWidth() - padding - rightWidth + offset or padding + offset
                     region:ClearAllPoints()
                     region:SetPoint("TOPLEFT", self.bar, "TOPLEFT", x, 0)
                     region:SetWidth(visible)

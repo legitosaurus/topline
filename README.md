@@ -82,8 +82,8 @@ at 150 ms is amber and at 300 ms is red. Missing, invalid, or restricted values
 show N/A independently, so one unavailable metric does not hide the other.
 
 The far right shows a local-time clock (`Local 6:46 PM`), refreshed every ten
-seconds. A separate right-aligned text region reserves space for it even when the
-left-side information grows. Providers can opt into that region with `side = "right"`.
+seconds. A separate right-anchored text region shares the available width with
+the left group, keeping a gap between them. Providers can opt into that region with `side = "right"`.
 
 The mail item appears between performance and the clock only when the client
 reports new mail, using a small letter icon and `Mail` label. Its tooltip lists
@@ -179,8 +179,14 @@ rounded down. Daily history is retained without pruning; idle days need no entry
 The bar shows today; its hover tooltip includes the session total, recorded lifetime
 total, and up to seven previous travel days. No additional screen or command is needed.
 
-Text can shrink from 12 to 10 UI units to fit smaller windows. Extremely narrow
-windows or long zone names can still truncate the line; it never wraps.
+Both groups share a font size that shrinks from 12 to a minimum of 10 UI units
+when crowded. A small group keeps the width it needs; two oversized groups split
+the available width, separated by a gap. With only one group, it can use the full
+strip. Text returns to 12 when space permits. Extremely narrow windows or long
+labels still truncate at the end of each group; neither group wraps or overlaps
+the other. Hover targets follow the visible text, and the right-click menu remains
+available for moving/hiding clipped items. Put your highest-priority items first
+in each group to keep them visible when space is tight.
 
 ## Client evidence
 

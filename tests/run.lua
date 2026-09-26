@@ -35,6 +35,7 @@ local function NewSession(options)
         "SetWordWrap", "SetNonSpaceWrap", "SetTextColor", "SetShadowColor", "SetShadowOffset" }) do
         Frame[method] = function() end
     end
+    function Frame:SetJustifyH(value) self.justifyH = value end
     function Frame:EnableMouseMotion(value) self.mouseMotion = value end
     function Frame:SetClampedToScreen(value) self.clamped = value end
     function Frame:SetOwner(owner) self.owner = owner end
@@ -1233,4 +1234,72 @@ equal(modules.Gold.side, "left")
 equal(modules.Clock.side, "right")
 state, addon, modules = NewSession({ ToplineSettingsDB = { itemSides = "bad" } })
 equal(modules.Clock.side, "right")
+-- Crowded groups stay inside the bar and share space without overlapping hover regions.
+state, addon, modules, env = NewSession()
+local function CheckBounds()
+    local edge = state.width - addon.contentPadding
+    local leftEdge = addon.contentPadding
+    local lastEnd = { left = leftEdge, right = state.width - addon.contentPadding - addon.rightText.width }
+    for _, item in ipairs(addon.modules) do
+        local region = item.hoverFrame
+        if region and region.shown then
+            local x = select(4, region:GetPoint(1))
+            equal(x >= leftEdge - 0.001 and x + region.width <= edge + 0.001, true, "Hover stays on screen")
+            equal(x >= lastEnd[item.side] - 0.001, true, "Same-group hover areas do not overlap")
+            lastEnd[item.side] = x + region.width
+        end
+    end
+    if addon.text.shown and addon.rightText.shown then
+        equal(addon.contentPadding + addon.text.width < state.width - addon.contentPadding - addon.rightText.width,
+            true, "Groups keep a gap")
+    end
+    equal(addon.text.fontSize, addon.rightText.fontSize, "Groups share font size")
+    equal(addon.text.fontSize >= 10 and addon.text.fontSize <= 12, true)
+end
+state.width = 800
+state:refresh("DISPLAY_SIZE_CHANGED")
+CheckBounds()
+equal(addon.rightText.justifyH, "LEFT", "Right clipping follows measured prefix")
+-- All content on the right: no offscreen natural-width frame or stale hit boxes.
+local allItems = {}
+for index, item in ipairs(addon.modules) do allItems[index] = item end
+for _, item in ipairs(allItems) do addon:MoveItemToGroup(item, "right") end
+state.drain()
+equal(addon.text.shown, false)
+equal(addon.rightText.width <= 780, true)
+CheckBounds()
+-- The formerly privileged right group must yield space to left-side content.
+addon:MoveItemToGroup(modules.Clock, "left")
+state.drain()
+equal(addon.text.width, addon.text:GetUnboundedStringWidth(), "Small group keeps full width")
+CheckBounds()
+addon:MoveItemToGroup(modules.Zone, "left")
+modules.Zone.text = string.rep("Very long zone name ", 30)
+addon:RenderBar()
+CheckBounds()
+equal(math.abs(addon.text.width - addon.rightText.width) < 1, true, "Two crowded groups split budget")
+state.width = 300
+state:refresh("DISPLAY_SIZE_CHANGED")
+CheckBounds()
+-- No stale downscaling when content shrinks or the window grows.
+state.width = 4000
+state:refresh("ZONE_CHANGED")
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(addon.text.fontSize, 12)
+equal(addon.rightText.fontSize, 12)
+CheckBounds()
+for _, item in ipairs(allItems) do addon:MoveItemToGroup(item, "left") end
+state.width = 700
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(addon.rightText.shown, false)
+equal(addon.text.width <= 680, true)
+CheckBounds()
+-- Degenerate widths hide every hit target rather than letting it escape the strip.
+state.width = 0
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(addon.text.shown, false)
+equal(addon.rightText.shown, false)
+for _, item in ipairs(addon.modules) do
+    if item.hoverFrame then equal(item.hoverFrame.shown, false) end
+end
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
