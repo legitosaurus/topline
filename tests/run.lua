@@ -108,6 +108,8 @@ local function NewSession(options)
             return ticker
         end,
     }
+    env.GetFramerate = function() return state.fps or 144 end
+    env.GetNetStats = function() return 0, 0, state.homeLatency or 24, state.worldLatency or 32 end
     env.GetTime = function() return state.now end
     env.GetServerTime = function() return state.wallTime + math.floor(state.now) end
     env.date = function(format, timestamp) return os.date("!" .. format, timestamp or state.wallTime + math.floor(state.now)) end
@@ -202,7 +204,7 @@ local function NewSession(options)
 end
 
 local state, addon, modules = NewSession()
-equal(#addon.modules, 7, "Seven requested providers load")
+equal(#addon.modules, 8, "Eight requested providers load")
 equal(addon.modules[1].name, "Zone")
 equal(addon.modules[5].name, "Durability")
 equal(addon.bar.parent ~= nil, true)
@@ -214,7 +216,7 @@ equal(addon.bar.points[2][1], "TOPRIGHT")
 equal(addon.bar.mouse, false)
 equal(addon.bottom.height, 3, "Bronze rail retains a readable height")
 for _, frame in ipairs(state.frames) do equal(frame.scripts.OnUpdate, nil) end
-equal(#state.tickers, 4, "Coordinates, XP, travel, and clock use tickers")
+equal(#state.tickers, 5, "Coordinates, XP, travel, performance, and clock use tickers")
 equal(modules.Zone.text, "Zone: Shattrath City - Terrace of Light (57, 30)")
 equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A")
 equal(modules.Gold.text, "|cffe6c5663,198g|r |cffbfc5cd47s|r |cffcf956a57c|r")
@@ -512,7 +514,8 @@ equal(addon.background.vertexColor[1], 1, "Artwork is not darkened by the fallba
 equal(addon.bottom.texCoords[3], 0.91, "Show the complete bottom metal rail")
 equal(addon.topEdge.texCoords[4], 0.085, "Show the top metal rail separately")
 equal(modules.Clock.text, "Local 12:00 AM", "Local clock at midnight")
-equal(addon.rightText.text, modules.Clock.text, "Clock occupies the right group")
+equal(addon.rightText.text:sub(-#modules.Clock.text), modules.Clock.text, "Clock remains last in the right group")
+equal(addon.rightText.text:sub(1, #modules.Performance.text), modules.Performance.text, "Performance precedes clock")
 equal(addon.text.text:find("Local", 1, true), nil, "Clock is not duplicated in the left group")
 equal(addon.text.width + addon.rightText.width + 44 <= addon.bar:GetWidth(), true,
     "Reserve clock width and separation")
@@ -768,4 +771,59 @@ equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A", "Unavailable AP
 env.MenuUtil = false
 xpRegion.scripts.OnMouseUp(xpRegion, "RightButton")
 equal(#state.messages, 0)
+-- Performance uses a low-frequency ticker and preserves independently usable values.
+state, addon, modules, env = NewSession()
+equal(modules.Performance.interval, 2)
+equal(modules.Performance.text, "|cffc7c7c7144 FPS|r  |cff666b73|||r  |cffc7c7c732 ms|r")
+Hover("Performance")
+equal(Row("Home latency"), "24 ms")
+equal(Row("World latency"), "32 ms")
+state.fps, state.homeLatency, state.worldLatency = 45, 200, 50
+state:tick(2)
+equal(modules.Performance.text, "|cffd6b36945 FPS|r  |cff666b73|||r  |cffd6b369200 ms|r")
+equal(Row("Frame rate"), "45.0 FPS", "Hovered details follow samples")
+state.fps, state.worldLatency = 20, 400
+state:tick(2)
+equal(modules.Performance.text, "|cffd9827920 FPS|r  |cff666b73|||r  |cffd98279400 ms|r")
+state.fps, state.homeLatency, state.worldLatency = 60, 0, 0
+state:tick(2)
+equal(modules.Performance.text, "|cffc7c7c760 FPS|r  |cff666b73|||r  |cffc7c7c70 ms|r", "Zero latency is valid")
+env.GetFramerate = false
+state:tick(2)
+equal(modules.Performance.fps, nil)
+equal(modules.Performance.world, 0, "Missing FPS does not hide latency")
+env.GetFramerate = function() return 120 end
+env.GetNetStats = function() error("Unavailable") end
+state:tick(2)
+equal(modules.Performance.fps, 120)
+equal(modules.Performance.home, nil)
+equal(#state.messages, 0, "Temporary API errors do not spam chat")
+env.GetNetStats = function() return 0, 0, -1, 50 end
+state:tick(2)
+equal(modules.Performance.home, nil)
+equal(modules.Performance.world, 50)
+env.issecretvalue = function(value) return rawequal(value, secret) end
+env.GetFramerate = function() return secret end
+env.GetNetStats = function() return 0, 0, secret, 70 end
+state:tick(2)
+equal(modules.Performance.fps, nil)
+equal(modules.Performance.home, nil)
+equal(modules.Performance.world, 70)
+equal(#state.messages, 0, "Restricted metrics are never compared or formatted")
+env.issecretvalue = false
+env.GetFramerate = function() return 30 end
+env.GetNetStats = function() return 0, 0, 150, 150 end
+state:tick(2)
+equal(modules.Performance.text, "|cffd6b36930 FPS|r  |cff666b73|||r  |cffd6b369150 ms|r", "Warning boundaries")
+env.GetNetStats = function() return 0, 0, 300, 300 end
+state:tick(2)
+equal(modules.Performance.text:find("|cffd98279300 ms|r", 1, true) ~= nil, true, "Critical latency boundary")
+env.GetFramerate = function() return 0/0 end
+env.GetNetStats = function() return 0, 0, math.huge, -1 end
+state:tick(2)
+equal(modules.Performance.fps, nil)
+equal(modules.Performance.home, nil)
+equal(modules.Performance.world, nil)
+state, addon, modules = NewSession({ GetFramerate = false, GetNetStats = false })
+equal(modules.Performance.text, "|cffc7c7c7N/A FPS|r  |cff666b73|||r  |cffc7c7c7N/A ms|r")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

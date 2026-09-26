@@ -64,6 +64,13 @@ addon does not appear, restart the client so it discovers the folder.
   even while standing still; a segment crossing midnight belongs to its sample's
   date. Each character has separate daily history and an all-time total.
 
+The right side shows FPS and latency before the local-time clock. Performance
+refreshes every two seconds using `GetFramerate` and `GetNetStats`; the bar uses
+the higher available home/world latency. Hover shows both latency values and FPS.
+Normal values are muted gray; FPS below 60 is amber and below 30 is red. Latency
+at 150 ms is amber and at 300 ms is red. Missing, invalid, or restricted values
+show N/A independently, so one unavailable metric does not hide the other.
+
 The far right shows a local-time clock (`Local 6:46 PM`), refreshed every ten
 seconds. A separate right-aligned text region reserves space for it even when the
 left-side information grows. Providers can opt into that region with `side = "right"`.
