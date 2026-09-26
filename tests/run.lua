@@ -86,7 +86,13 @@ local function NewSession(options)
     function Frame:SetText(text) self.text = text end
     function Frame:GetUnboundedStringWidth()
         local plain = self.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-        return #plain * self.fontSize * 0.5
+        local textureWidth = 0
+        plain = plain:gsub("|T[^|]-:(%d+):(%d+):[^|]-|t", function(height, width)
+            textureWidth = textureWidth + tonumber(width)
+            return ""
+        end)
+        plain = plain:gsub("||", "|")
+        return #plain * self.fontSize * 0.5 + textureWidth
     end
     local function Object()
         return setmetatable({ points = {}, scripts = {}, events = {} }, { __index = Frame })
@@ -108,6 +114,8 @@ local function NewSession(options)
             return ticker
         end,
     }
+    env.HasNewMail = function() return state.mailWaiting end
+    env.GetLatestThreeSenders = function() return "Sender One", "Sender Two" end
     env.GetFramerate = function() return state.fps or 144 end
     env.GetNetStats = function() return 0, 0, state.homeLatency or 24, state.worldLatency or 32 end
     env.GetTime = function() return state.now end
@@ -204,7 +212,7 @@ local function NewSession(options)
 end
 
 local state, addon, modules = NewSession()
-equal(#addon.modules, 8, "Eight requested providers load")
+equal(#addon.modules, 9, "Nine requested providers load")
 equal(addon.modules[1].name, "Zone")
 equal(addon.modules[5].name, "Durability")
 equal(addon.bar.parent ~= nil, true)
@@ -605,11 +613,13 @@ local function Hover(name)
     region.scripts.OnEnter(region)
 end
 for name, module in pairs(modules) do
+    if module.text ~= "" then
     equal(module.hoverFrame.mouse, name == "Experience", name .. " click handling")
     equal(module.hoverFrame.mouseMotion, true)
     Hover(name)
     equal(addon.infoTooltip.shown, true)
     equal(addon.infoTooltip.lines[2][1] ~= "Details currently unavailable.", true, name .. " tooltip renders")
+    end
 end
 Hover("Experience")
 equal(Row("Kills to level (last kill)"), "Unknown")
@@ -826,4 +836,50 @@ equal(modules.Performance.home, nil)
 equal(modules.Performance.world, nil)
 state, addon, modules = NewSession({ GetFramerate = false, GetNetStats = false })
 equal(modules.Performance.text, "|cffc7c7c7N/A FPS|r  |cff666b73|||r  |cffc7c7c7N/A ms|r")
+-- Mail is event-driven and takes no space (or hover target) when absent.
+state, addon, modules, env = NewSession()
+local rightWithoutMail = addon.rightText.text
+local widthWithoutMail = addon.rightText.width
+local tickerCount = #state.tickers
+equal(modules.Mail.text, "")
+equal(modules.Mail.hoverFrame, nil)
+state.mailWaiting = true
+state:refresh("UPDATE_PENDING_MAIL")
+equal(modules.Mail.text:find("Mail", 1, true) ~= nil, true)
+equal(modules.Mail.hoverFrame.shown, true)
+equal(addon.rightText.width > widthWithoutMail, true)
+equal(addon.rightText.text:sub(-#modules.Clock.text), modules.Clock.text)
+equal(#state.tickers, tickerCount, "Mail adds no polling timer")
+Hover("Mail")
+equal(addon.infoTooltip.lines[1][1], "Mail waiting")
+equal(addon.infoTooltip.lines[5][1], "Sender One")
+equal(addon.infoTooltip.lines[6][1], "Sender Two")
+local mailTicker = addon.tooltipTicker
+state.mailWaiting = false
+state:refresh("MAIL_INBOX_UPDATE")
+equal(modules.Mail.hoverFrame.shown, false)
+equal(addon.infoTooltip.shown, false, "Dismiss hovered mail when it disappears")
+equal(mailTicker.cancelled, true)
+equal(addon.rightText.text, rightWithoutMail, "No empty separator remains")
+equal(addon.rightText.width, widthWithoutMail, "Mail releases its reserved width")
+state.mailWaiting = true
+state:refresh("MAIL_CLOSED")
+equal(modules.Mail.hoverFrame.shown, true, "Mail can reappear")
+env.GetLatestThreeSenders = false
+Hover("Mail")
+equal(#addon.infoTooltip.lines, 2, "Mail without sender data still has useful details")
+env.GetLatestThreeSenders = function() return secret, nil, "Third sender" end
+env.issecretvalue = function(value) return rawequal(value, secret) end
+addon:RefreshInfoTooltip()
+equal(addon.infoTooltip.lines[5][1], "Third sender", "Restricted/missing senders skipped safely")
+env.HasNewMail = function() return secret end
+state:refresh("UPDATE_PENDING_MAIL")
+equal(modules.Mail.text, "", "Restricted mail status is hidden")
+env.HasNewMail = function() error("Unavailable") end
+state:refresh("UPDATE_PENDING_MAIL")
+equal(#state.messages, 0)
+state, addon, modules = NewSession({ HasNewMail = false })
+equal(modules.Mail.text, "", "Missing mail API does not clutter the bar")
+state, addon, modules = NewSession({ HasNewMail = function() return true end })
+equal(modules.Mail.hoverFrame.shown, true, "Mail present at login displays immediately")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

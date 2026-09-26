@@ -100,12 +100,14 @@ function Topline:RenderBar()
     if not self.text then return end
     local leftCount, rightCount = 0, 0
     for _, module in ipairs(self.modules) do
-        if module.side == "right" then
-            rightCount = rightCount + 1
-            rightPieces[rightCount] = module.text
-        else
-            leftCount = leftCount + 1
-            pieces[leftCount] = module.text
+        if module.text ~= "" then
+            if module.side == "right" then
+                rightCount = rightCount + 1
+                rightPieces[rightCount] = module.text
+            else
+                leftCount = leftCount + 1
+                pieces[leftCount] = module.text
+            end
         end
     end
     self.rightText:SetText(table.concat(rightPieces, separator, 1, rightCount))

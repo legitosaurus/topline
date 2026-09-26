@@ -68,50 +68,54 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
     end
     local leftOffset, rightOffset = 0, 0
     for _, module in ipairs(self.modules) do
-        local right = module.side == "right"
-        local font = right and self.rightText or self.text
-        measure:SetFont(font:GetFont())
-        measure:SetText(module.text)
-        local width = measure:GetUnboundedStringWidth()
-        measure:SetText(separator)
-        local gap = measure:GetUnboundedStringWidth()
-        local offset = right and rightOffset or leftOffset
-        local limit = right and rightWidth or leftWidth
-        local visible = math.min(width, limit - offset)
-        if module.tooltip then
-            if not module.hoverFrame then
-                local region = CreateFrame("Frame", nil, self.bar)
-                module.hoverFrame = region
-                region:EnableMouse(false)
-                if region.EnableMouseMotion then region:EnableMouseMotion(true) else region:EnableMouse(true) end
-                if module.menu then
-                    region:EnableMouse(true)
-                    region:SetScript("OnMouseUp", function(owner, button)
-                        if button ~= "RightButton" or not (MenuUtil and MenuUtil.CreateContextMenu) then return end
-                        self:HideInfoTooltip()
-                        MenuUtil.CreateContextMenu(owner, function(_, root) module:menu(root) end)
+        if module.text == "" then
+            if module.hoverFrame then module.hoverFrame:Hide() end
+        else
+            local right = module.side == "right"
+            local font = right and self.rightText or self.text
+            measure:SetFont(font:GetFont())
+            measure:SetText(module.text)
+            local width = measure:GetUnboundedStringWidth()
+            measure:SetText(separator)
+            local gap = measure:GetUnboundedStringWidth()
+            local offset = right and rightOffset or leftOffset
+            local limit = right and rightWidth or leftWidth
+            local visible = math.min(width, limit - offset)
+            if module.tooltip then
+                if not module.hoverFrame then
+                    local region = CreateFrame("Frame", nil, self.bar)
+                    module.hoverFrame = region
+                    region:EnableMouse(false)
+                    if region.EnableMouseMotion then region:EnableMouseMotion(true) else region:EnableMouse(true) end
+                    if module.menu then
+                        region:EnableMouse(true)
+                        region:SetScript("OnMouseUp", function(owner, button)
+                            if button ~= "RightButton" or not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+                            self:HideInfoTooltip()
+                            MenuUtil.CreateContextMenu(owner, function(_, root) module:menu(root) end)
+                        end)
+                    end
+                    region:SetScript("OnEnter", function() self:ShowInfoTooltip(module) end)
+                    region:SetScript("OnLeave", function()
+                        if self.hoveredModule == module then self:HideInfoTooltip() end
+                    end)
+                    region:SetScript("OnHide", function()
+                        if self.hoveredModule == module then self:HideInfoTooltip() end
                     end)
                 end
-                region:SetScript("OnEnter", function() self:ShowInfoTooltip(module) end)
-                region:SetScript("OnLeave", function()
-                    if self.hoveredModule == module then self:HideInfoTooltip() end
-                end)
-                region:SetScript("OnHide", function()
-                    if self.hoveredModule == module then self:HideInfoTooltip() end
-                end)
+                local region = module.hoverFrame
+                if visible > 0 then
+                    local x = right and self.bar:GetWidth() - 10 - rightWidth + offset or 10 + offset
+                    region:ClearAllPoints()
+                    region:SetPoint("TOPLEFT", self.bar, "TOPLEFT", x, 0)
+                    region:SetWidth(visible)
+                    region:SetHeight(20)
+                    region:Show()
+                else
+                    region:Hide()
+                end
             end
-            local region = module.hoverFrame
-            if visible > 0 then
-                local x = right and self.bar:GetWidth() - 10 - rightWidth + offset or 10 + offset
-                region:ClearAllPoints()
-                region:SetPoint("TOPLEFT", self.bar, "TOPLEFT", x, 0)
-                region:SetWidth(visible)
-                region:SetHeight(20)
-                region:Show()
-            else
-                region:Hide()
-            end
+            if right then rightOffset = offset + width + gap else leftOffset = offset + width + gap end
         end
-        if right then rightOffset = offset + width + gap else leftOffset = offset + width + gap end
     end
 end

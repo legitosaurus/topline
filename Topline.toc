@@ -2,7 +2,7 @@
 ## Title: Topline
 ## Notes: A lightweight top-of-screen status strip for World of Warcraft: Forever.
 ## Author: Topline
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariablesPerCharacter: ToplineCharDB
 
 Core.lua
@@ -19,4 +19,5 @@ Modules\Bags.lua
 Modules\Durability.lua
 Modules\Pedometer.lua
 Modules\Performance.lua
+Modules\Mail.lua
 Modules\Clock.lua

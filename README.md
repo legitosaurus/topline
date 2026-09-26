@@ -75,6 +75,14 @@ The far right shows a local-time clock (`Local 6:46 PM`), refreshed every ten
 seconds. A separate right-aligned text region reserves space for it even when the
 left-side information grows. Providers can opt into that region with `side = "right"`.
 
+The mail item appears between performance and the clock only when the client
+reports new mail, using a small letter icon and `Mail` label. Its tooltip lists
+up to three recent senders when available. It follows `HasNewMail` and
+`UPDATE_PENDING_MAIL`, with inbox/close events also refreshing the state; it does
+not poll, scan mail contents, claim an unread count, or open the mailbox remotely.
+Missing/restricted mail status hides the item. Empty providers consume no width,
+separator, or hover area. Clearing mail follows the client's notification timing.
+
 ## Hover details
 
 Hover any item for a native WoW tooltip below the strip. Right-click XP/hr and
@@ -177,6 +185,7 @@ Topline:RegisterModule("Example", {
         tip:AddLine("Example details")
         Topline:TooltipRow(tip, "Value", "More information")
     end,
+    -- Return "" from update to hide this item and its separator.
     -- interval = 5, -- optional, only when events are insufficient
     update = function(self, event, ...)
         return "Example: value" -- nil leaves the previous text intact
