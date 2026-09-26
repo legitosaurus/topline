@@ -236,7 +236,7 @@ equal(#state.tickers, 5, "Coordinates, XP, travel, performance, and clock use ti
 equal(modules.Zone.text, "Zone: Shattrath City - Terrace of Light (57, 30)")
 equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A")
 equal(modules.Gold.text, "|cffe6c5663,198g|r |cffbfc5cd47s|r |cffcf956a57c|r")
-equal(modules.Bags.text, "Bags: 78/80")
+equal(modules.Bags.text, "|cffd6b369Bags: 78/80|r")
 equal(state.bagCalls[5], nil, "Exclude reagent bag")
 equal(modules.Durability.text, "Durability: 60%", "Weight durability by item maximum")
 
@@ -266,10 +266,10 @@ state:refresh("PLAYER_MONEY")
 equal(modules.Gold.text, "|cffe6c5660g|r |cffbfc5cd0s|r |cffcf956a0c|r")
 state.free[0] = 0
 state:refresh("BAG_UPDATE_DELAYED")
-equal(modules.Bags.text, "Bags: 80/80")
+equal(modules.Bags.text, "|cffd98279Bags: 80/80|r")
 state.slots[4], state.free[4] = 0, 0
 state:refresh("PLAYER_EQUIPMENT_CHANGED")
-equal(modules.Bags.text, "Bags: 64/64", "Removed bag")
+equal(modules.Bags.text, "|cffd98279Bags: 64/64|r", "Removed bag")
 state.durability[1][1] = 100
 state:refresh("UPDATE_INVENTORY_DURABILITY")
 equal(modules.Durability.text, "Durability: 100%", "Repair event")
@@ -332,7 +332,7 @@ equal(#state.messages, 0, "Missing optional APIs do not throw")
 
 state, addon, modules = NewSession({ GetMoney = function() error("API changed") end })
 equal(modules.Gold.text, "Gold: N/A")
-equal(modules.Bags.text, "Bags: 78/80", "Other providers survive errors")
+equal(modules.Bags.text, "|cffd6b369Bags: 78/80|r", "Other providers survive errors")
 state:refresh("PLAYER_MONEY")
 equal(#state.messages, 1, "Report provider failure only once")
 
@@ -608,7 +608,7 @@ state, addon, modules, env = NewSession(brokenCacheOptions)
 equal(#state.messages, 1, "Warn if native storage silently truncates data")
 state:refresh("PLAYER_LOGOUT")
 equal(#state.messages, 1, "Cache failures do not spam chat")
-equal(modules.Bags.text, "Bags: 78/80", "Native cache failure does not break other providers")
+equal(modules.Bags.text, "|cffd6b369Bags: 78/80|r", "Native cache failure does not break other providers")
 -- Hover lifecycle, live data, kill parsing, and independent provider failures.
 state, addon, modules, env = NewSession()
 local function Row(label)
@@ -664,9 +664,9 @@ Hover("Pedometer")
 equal(Row("All recorded travel"), "0 yd")
 equal(next(env.ToplineCharDB.pedometer.days), nil, "Hover does not create history")
 Hover("Durability")
-equal(Row("Slot 1"), "50 / 100 (50%)")
+equal(Row("Head"), "50 / 100 (50%) - damaged")
 Hover("Bags")
-equal(Row("Backpack"), "14 / 16 (2 free)")
+equal(Row("Backpack"), "|cffd6b3692 free - 14 / 16 used|r")
 modules.Bags.tooltip = function() error("broken provider") end
 addon:RefreshInfoTooltip()
 equal(addon.infoTooltip.lines[2][1], "Details currently unavailable.")
@@ -1373,4 +1373,53 @@ state.width = 4000
 state:refresh("DISPLAY_SIZE_CHANGED")
 equal(rightOverflow.shown, false, "Overflow disappears when everything fits")
 for _, item in ipairs(addon.modules) do equal(item.overflowSide, nil) end
+-- Bag warning boundaries, clear tooltips, and repaired equipment color recovery.
+state, addon, modules, env = NewSession()
+for freeSlots = 6, 0, -1 do
+    state.free[0] = freeSlots
+    state:refresh("BAG_UPDATE_DELAYED")
+    local plain = "Bags: " .. (80 - freeSlots) .. "/80"
+    local expected = freeSlots == 0 and "|cffd98279" .. plain .. "|r"
+        or freeSlots <= 5 and "|cffd6b369" .. plain .. "|r" or plain
+    equal(modules.Bags.text, expected, "Bag warning threshold " .. freeSlots)
+end
+Hover("Bags")
+equal(Row("Free slots"), "|cffd982790|r")
+equal(Row("Used / total slots"), "80 / 80")
+state.free[0] = 6
+state:refresh("BAG_UPDATE_DELAYED")
+addon:RefreshInfoTooltip()
+equal(Row("Free slots"), "6", "Recovered space clears warning")
+for index = 0, 4 do state.slots[index] = 0 end
+state:refresh("BAG_UPDATE_DELAYED")
+equal(modules.Bags.text, "Bags: 0/0", "Unavailable capacity is not full-bag warning")
+state.durability = { [1] = { 30, 100 } }
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+equal(modules.Durability.text, "Durability: 30%", "30 percent is not below threshold")
+state.durability[1][1] = 29
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+equal(modules.Durability.text, "|cffd6b369Durability: 29%|r")
+state.durability[1][1] = 10
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+equal(modules.Durability.text, "|cffd6b369Durability: 10%|r")
+state.durability[1][1] = 9
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+equal(modules.Durability.text, "|cffd98279Durability: 9%|r")
+Hover("Durability")
+equal(Row("Head"), "|cffd982799 / 100 (9%) - damaged|r")
+equal(Row("Items needing repair"), "|cffd982791|r")
+state.durability = { [1] = { 0, 100 }, [5] = { 100, 100 } }
+state:refresh("PLAYER_EQUIPMENT_CHANGED")
+addon:RefreshInfoTooltip()
+equal(modules.Durability.text, "Durability: 50%", "Bar still uses weighted aggregate")
+equal(Row("Head"), "|cffd982790 / 100 (0%) - broken|r", "Broken item warns even with healthy aggregate")
+equal(Row("Broken items"), "|cffd982791|r")
+equal(Row("Chest"), "100 / 100 (100%)")
+state.durability[1][1] = 100
+state:refresh("MERCHANT_CLOSED")
+addon:RefreshInfoTooltip()
+equal(modules.Durability.text, "Durability: 100%")
+equal(Row("Head"), "100 / 100 (100%)")
+equal(Row("Items needing repair"), "0")
+equal(Row("Broken items"), "0")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

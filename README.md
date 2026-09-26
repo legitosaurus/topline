@@ -56,9 +56,16 @@ addon does not appear, restart the client so it discovers the folder.
 - Bags count occupied slots in the backpack and four normal equipped bags
   (indexes 0–4), including specialty bags in those slots. Reagent bags, keyrings,
   and all bank storage are excluded. Uses `BAG_UPDATE_DELAYED` and equipment events.
+  Five or fewer free slots turns the bar amber; full bags turn red. The tooltip
+  leads with total free slots, then shows each bag's free and used slots with
+  matching warnings. Specialty-bag space still has item restrictions. These
+  warnings add no polling, flashing, or chat messages.
 - Durability is total current / total maximum across equipped items with
   durability. Equipment, durability, and merchant-close events refresh it;
-  characters with no durable equipment show N/A.
+  characters with no durable equipment show N/A. The bar turns muted amber below
+  30% and red below 10%, based on the unrounded aggregate. Tooltip item rows use
+  the same thresholds independently, label damaged/broken equipment, and count
+  items needing repair plus broken items. Fully repaired items return to neutral.
 - `Moved today: 1,234 yd` is horizontal distance traveled today, sampled four
   times a second using `UnitPosition`, with start/stop movement events as well.
   Walking, running, swimming, and ordinary mounted travel count. This measures
