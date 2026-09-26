@@ -6,6 +6,10 @@ local labels = {
     Performance = "FPS / latency", Mail = "Mail (when waiting)", Clock = "Clock",
 }
 
+function Topline:ItemLabel(module)
+    return labels[module.name] or module.name
+end
+
 function Topline:InitializeSettings()
     if type(ToplineSettingsDB) ~= "table" then ToplineSettingsDB = {} end
     if type(ToplineSettingsDB.hiddenItems) ~= "table" then ToplineSettingsDB.hiddenItems = {} end

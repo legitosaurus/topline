@@ -184,8 +184,11 @@ when crowded. A small group keeps the width it needs; two oversized groups split
 the available width, separated by a gap. With only one group, it can use the full
 strip. Text returns to 12 when space permits. Extremely narrow windows or long
 labels still truncate at the end of each group; neither group wraps or overlaps
-the other. Hover targets follow the visible text, and the right-click menu remains
-available for moving/hiding clipped items. Put your highest-priority items first
+the other. Hover targets follow the visible text. A compact **...** control appears at the
+end of each crowded group; left- or right-click it for the partially or fully
+clipped items. Hover an entry for its current provider details, or use its submenu
+for existing session-reset actions, hiding, and changing groups. Manually hidden
+items and absent mail are excluded. Controls disappear when everything fits. Put your highest-priority items first
 in each group to keep them visible when space is tight.
 
 ## Client evidence

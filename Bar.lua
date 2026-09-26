@@ -148,11 +148,17 @@ function Topline:RenderBar()
         leftWidth = math.min(leftNatural, math.max(budget / 2, budget - rightNatural))
         rightWidth = math.min(rightNatural, math.max(0, budget - leftWidth))
     end
+    local rightOriginWidth = rightWidth
+    leftWidth = self:PrepareOverflow("left", leftWidth, leftNatural, padding)
+    local rightReserve
+    rightWidth, rightReserve = self:PrepareOverflow("right", rightWidth, rightNatural, barWidth - padding - rightWidth)
+    self.rightText:ClearAllPoints()
+    self.rightText:SetPoint("RIGHT", -padding - rightReserve, 0)
     self.text:SetWidth(math.max(1, leftWidth))
     self.rightText:SetWidth(math.max(1, rightWidth))
     if leftWidth > 0 then self.text:Show() else self.text:Hide() end
     if rightWidth > 0 then self.rightText:Show() else self.rightText:Hide() end
     -- Right text is left-justified inside a right-anchored box, so clipping and
     -- hover measurements both keep the leading items of either group.
-    self:LayoutHoverRegions(separator, leftWidth, rightWidth)
+    self:LayoutHoverRegions(separator, leftWidth, rightWidth, rightOriginWidth)
 end

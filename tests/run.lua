@@ -1104,6 +1104,7 @@ equal(addon:IsItemEnabled(modules.Gold), true, "Only true disables an item")
 state, addon, modules, env = NewSession()
 local function MenuTree()
     local tree = { buttons = {} }
+    function tree:SetTooltip(callback) self.tooltip = callback end
     function tree:CreateTitle() end
     function tree:CreateDivider() end
     function tree:CreateCheckbox() end
@@ -1239,7 +1240,8 @@ state, addon, modules, env = NewSession()
 local function CheckBounds()
     local edge = state.width - addon.contentPadding
     local leftEdge = addon.contentPadding
-    local lastEnd = { left = leftEdge, right = state.width - addon.contentPadding - addon.rightText.width }
+    local rightReserve = addon.overflowButtons.right and addon.overflowButtons.right.shown and addon.overflowButtons.right.width or 0
+    local lastEnd = { left = leftEdge, right = state.width - addon.contentPadding - addon.rightText.width - rightReserve }
     for _, item in ipairs(addon.modules) do
         local region = item.hoverFrame
         if region and region.shown then
@@ -1302,4 +1304,73 @@ equal(addon.rightText.shown, false)
 for _, item in ipairs(addon.modules) do
     if item.hoverFrame then equal(item.hoverFrame.shown, false) end
 end
+-- Overflow exposes partially and fully clipped providers without saved visibility changes.
+state, addon, modules, env = NewSession()
+env.MenuUtil = { CreateContextMenu = function(_, generator)
+    state.menuTree = MenuTree()
+    generator(addon.bar, state.menuTree)
+end }
+state.width = 500
+state:refresh("DISPLAY_SIZE_CHANGED")
+local leftOverflow = addon.overflowButtons.left
+equal(leftOverflow.shown, true)
+local overflowX = select(4, leftOverflow:GetPoint(1))
+for _, item in ipairs(addon.modules) do
+    if item.side == "left" and item.hoverFrame and item.hoverFrame.shown then
+        equal(select(4, item.hoverFrame:GetPoint(1)) + item.hoverFrame.width <= overflowX + 0.001, true,
+            "Text hit regions do not overlap overflow control")
+    end
+end
+leftOverflow.scripts.OnMouseUp(leftOverflow, "LeftButton")
+local overflowCount = 0
+for _, item in ipairs(addon.modules) do
+    local entry = state.menuTree.buttons[addon:ItemLabel(item)]
+    equal(entry ~= nil, item.overflowSide == "left", "Menu contains exactly clipped left items")
+    if entry then overflowCount = overflowCount + 1 end
+end
+equal(overflowCount > 0, true)
+local goldEntry = state.menuTree.buttons.Money
+equal(type(goldEntry.buttons["Reset session"].action), "function", "Overflow retains reset actions")
+state.money = state.money + 100
+state:refresh("PLAYER_MONEY")
+goldEntry.buttons["Reset session"].action()
+equal(modules.Gold.gained, 0)
+-- Tooltip callbacks use the provider's current values.
+addon:ShowInfoTooltip(modules.Gold)
+addon.infoTooltip:ClearLines()
+goldEntry.tooltip(addon.infoTooltip)
+equal(PlainMoney(Row("Gained this session")), "0g 0s 0c")
+addon:HideInfoTooltip()
+goldEntry.buttons["Hide item"].action()
+state.drain()
+leftOverflow.scripts.OnMouseUp(leftOverflow, "RightButton")
+equal(state.menuTree.buttons.Money, nil, "User-hidden items never leak into overflow")
+equal(modules.Gold.overflowSide, nil)
+-- Right-group overflow also reserves the control's width at the far right.
+local transferItems = {}
+for index, item in ipairs(addon.modules) do transferItems[index] = item end
+for _, item in ipairs(transferItems) do addon:MoveItemToGroup(item, "right") end
+state.drain()
+local rightOverflow = addon.overflowButtons.right
+equal(rightOverflow.shown, true)
+equal(leftOverflow.shown, false)
+local rightX = select(4, rightOverflow:GetPoint(1))
+equal(rightX + rightOverflow.width <= 490, true)
+for _, item in ipairs(addon.modules) do
+    if item.hoverFrame and item.hoverFrame.shown then
+        equal(select(4, item.hoverFrame:GetPoint(1)) + item.hoverFrame.width <= rightX + 0.001, true)
+    end
+end
+rightOverflow.scripts.OnMouseUp(rightOverflow, "LeftButton")
+for _, item in ipairs(addon.modules) do
+    if item.overflowSide == "right" then
+        state.menuTree.buttons[addon:ItemLabel(item)].buttons["Move to left group"].action()
+        equal(item.side, "left", "Overflow item can move groups")
+        break
+    end
+end
+state.width = 4000
+state:refresh("DISPLAY_SIZE_CHANGED")
+equal(rightOverflow.shown, false, "Overflow disappears when everything fits")
+for _, item in ipairs(addon.modules) do equal(item.overflowSide, nil) end
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

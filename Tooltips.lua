@@ -61,13 +61,14 @@ end
 
 -- Keep the continuous text layout; transparent mouse regions follow the
 -- measured text, including its font size and clipping in a narrow window.
-function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
+function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth, rightOriginWidth)
     if not measure then
         measure = self.bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         measure:Hide()
     end
     local leftOffset, rightOffset = 0, 0
     for _, module in ipairs(self.modules) do
+        module.overflowSide = nil
         if not self:IsItemEnabled(module) or module.text == "" then
             if module.hoverFrame then module.hoverFrame:Hide() end
         else
@@ -81,6 +82,7 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
             local offset = right and rightOffset or leftOffset
             local limit = right and rightWidth or leftWidth
             local visible = math.min(width, limit - offset)
+            if offset + width > limit then module.overflowSide = right and "right" or "left" end
             if module.tooltip then
                 if not module.hoverFrame then
                     local region = CreateFrame("Frame", nil, self.bar)
@@ -101,7 +103,7 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
                 local region = module.hoverFrame
                 if visible > 0 then
                     local padding = self.contentPadding or 10
-                    local x = right and self.bar:GetWidth() - padding - rightWidth + offset or padding + offset
+                    local x = right and self.bar:GetWidth() - padding - (rightOriginWidth or rightWidth) + offset or padding + offset
                     region:ClearAllPoints()
                     region:SetPoint("TOPLEFT", self.bar, "TOPLEFT", x, 0)
                     region:SetWidth(visible)
