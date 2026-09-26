@@ -51,6 +51,7 @@ local function Start()
     if started then return end
     started = true
     table.sort(Topline.modules, function(a, b) return a.order < b.order end)
+    Topline:InitializeSettings()
     Topline:CreateBar()
     Topline:InitializeLayout()
     for _, module in ipairs(Topline.modules) do

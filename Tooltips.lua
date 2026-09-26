@@ -68,7 +68,7 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
     end
     local leftOffset, rightOffset = 0, 0
     for _, module in ipairs(self.modules) do
-        if module.text == "" then
+        if not self:IsItemEnabled(module) or module.text == "" then
             if module.hoverFrame then module.hoverFrame:Hide() end
         else
             local right = module.side == "right"
@@ -85,16 +85,11 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
                 if not module.hoverFrame then
                     local region = CreateFrame("Frame", nil, self.bar)
                     module.hoverFrame = region
-                    region:EnableMouse(false)
+                    region:EnableMouse(true)
                     if region.EnableMouseMotion then region:EnableMouseMotion(true) else region:EnableMouse(true) end
-                    if module.menu then
-                        region:EnableMouse(true)
-                        region:SetScript("OnMouseUp", function(owner, button)
-                            if button ~= "RightButton" or not (MenuUtil and MenuUtil.CreateContextMenu) then return end
-                            self:HideInfoTooltip()
-                            MenuUtil.CreateContextMenu(owner, function(_, root) module:menu(root) end)
-                        end)
-                    end
+                    region:SetScript("OnMouseUp", function(_, button)
+                        if button == "RightButton" then self:OpenBarMenu(module) end
+                    end)
                     region:SetScript("OnEnter", function() self:ShowInfoTooltip(module) end)
                     region:SetScript("OnLeave", function()
                         if self.hoveredModule == module then self:HideInfoTooltip() end

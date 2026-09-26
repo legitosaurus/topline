@@ -19,7 +19,10 @@ function Topline:CreateBar()
     bar:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
     bar:SetHeight(20)
     bar:SetFrameStrata("HIGH")
-    bar:EnableMouse(false)
+    bar:EnableMouse(true)
+    bar:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" then self:OpenBarMenu() end
+    end)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -100,7 +103,7 @@ function Topline:RenderBar()
     if not self.text then return end
     local leftCount, rightCount = 0, 0
     for _, module in ipairs(self.modules) do
-        if module.text ~= "" then
+        if self:IsItemEnabled(module) and module.text ~= "" then
             if module.side == "right" then
                 rightCount = rightCount + 1
                 rightPieces[rightCount] = module.text

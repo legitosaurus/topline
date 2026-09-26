@@ -1,7 +1,8 @@
 # Topline
 
 A standalone status strip for World of Warcraft: Forever. No dependencies,
-configuration screens, slash commands, or bundled libraries. Pedometer history
+configuration screens, slash commands, or bundled libraries. A right-click menu
+controls which items are visible. Pedometer history
 uses WoW's per-character SavedVariables.
 
 ## Installation
@@ -19,7 +20,7 @@ addon does not appear, restart the client so it discovers the folder.
   at the bar's thin height. Artwork uses a neutral white tint; a soft lower shadow
   finishes the edge. Native small font and muted
   pipe separators keep the text readable. See `Media/README.md` for asset provenance.
-  It inherits UI scale; transparent hover regions receive mouse motion. The XP and money items also accept clicks for their context menus.
+  It inherits UI scale. The bar and its transparent hover regions accept right-clicks for context menus.
 - The layout helper reserves the strip's height plus two UI units of clearance
   by translating overlapping Blizzard buffs, debuffs, minimap, player, target,
   focus, and objective tracker frames below it. It preserves their relative
@@ -91,6 +92,21 @@ up to three recent senders when available. It follows `HasNewMail` and
 not poll, scan mail contents, claim an unread count, or open the mailbox remotely.
 Missing/restricted mail status hides the item. Empty providers consume no width,
 separator, or hover area. Clearing mail follows the client's notification timing.
+
+## Item visibility
+
+Right-click any item or empty space on the strip, then open **Show/hide items**.
+Checkboxes control each provider (FPS/latency share one item). XP and money retain
+their **Reset session** actions in the same menu. The strip remains available even
+when everything is hidden, so right-click it to restore items. Enabling Mail still
+shows it only when mail is waiting. Hidden items leave no separators or hover areas.
+
+Hiding is a display preference: providers continue tracking in the background,
+including XP, money, and movement, so showing them does not lose session history.
+Choices default to all enabled and are saved per character in `ToplineSettingsDB`.
+They rely on WoW loading SavedVariables; the Forever travel CVar workaround does
+not back up these preferences. The beta's disk-loading bug can therefore reset
+visibility choices if it drops SavedVariables.
 
 ## Hover details
 

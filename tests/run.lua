@@ -221,7 +221,7 @@ equal(addon.background.horizontalWrap, "REPEAT", "Repeat the material instead of
 equal(addon.background.texCoords[2], 12, "Preserve the texture aspect ratio at 1920 UI units")
 equal(addon.bar.points[1][1], "TOPLEFT")
 equal(addon.bar.points[2][1], "TOPRIGHT")
-equal(addon.bar.mouse, false)
+equal(addon.bar.mouse, true)
 equal(addon.bottom.height, 3, "Bronze rail retains a readable height")
 for _, frame in ipairs(state.frames) do equal(frame.scripts.OnUpdate, nil) end
 equal(#state.tickers, 5, "Coordinates, XP, travel, performance, and clock use tickers")
@@ -614,7 +614,7 @@ local function Hover(name)
 end
 for name, module in pairs(modules) do
     if module.text ~= "" then
-    equal(module.hoverFrame.mouse, name == "Experience" or name == "Gold", name .. " click handling")
+    equal(module.hoverFrame.mouse, true, name .. " click handling")
     equal(module.hoverFrame.mouseMotion, true)
     Hover(name)
     equal(addon.infoTooltip.shown, true)
@@ -729,7 +729,10 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
     state.menu = {}
     generator(owner, {
         CreateTitle = function(_, text) state.menu.title = text end,
-        CreateButton = function(_, text, callback) state.menu.label, state.menu.reset = text, callback end,
+        CreateButton = function(_, text, callback)
+            if callback then state.menu.label, state.menu.reset = text, callback end
+            return { CreateCheckbox = function() end }
+        end,
     })
 end }
 state.xp = 950
@@ -743,7 +746,7 @@ equal(state.menu, nil, "Left click does not open reset menu")
 Hover("Experience")
 local hoverTicker = addon.tooltipTicker
 xpRegion.scripts.OnMouseUp(xpRegion, "RightButton")
-equal(state.menuOwner, xpRegion)
+equal(state.menuOwner, addon.bar)
 equal(state.menu.label, "Reset session")
 equal(hoverTicker.cancelled, true)
 equal(modules.Experience.gained, 50, "Opening or dismissing menu does not reset")
@@ -939,7 +942,10 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
     state.menu = {}
     generator(owner, {
         CreateTitle = function(_, text) state.menu.title = text end,
-        CreateButton = function(_, text, callback) state.menu.label, state.menu.reset = text, callback end,
+        CreateButton = function(_, text, callback)
+            if callback then state.menu.label, state.menu.reset = text, callback end
+            return { CreateCheckbox = function() end }
+        end,
     })
 end }
 state.xp = 950
@@ -993,4 +999,71 @@ state.money = secret
 state.menu.reset()
 equal(modules.Gold.lastMoney, nil, "Restricted balance cannot seed reset")
 equal(#state.messages, 0)
+-- Visibility menu survives hiding every item, persists per character, and preserves tracking.
+state, addon, modules, env = NewSession()
+env.MenuUtil = { CreateContextMenu = function(owner, generator)
+    state.menuOwner = owner
+    state.visibilityChoices = {}
+    generator(owner, {
+        CreateTitle = function() end,
+        CreateButton = function(_, label, callback)
+            if callback then state.resetAction = callback end
+            return { CreateCheckbox = function(_, text, selected, toggle)
+                state.visibilityChoices[text] = { selected = selected, toggle = toggle }
+            end }
+        end,
+    })
+end }
+addon.bar.scripts.OnMouseUp(addon.bar, "LeftButton")
+equal(state.visibilityChoices, nil)
+addon.bar.scripts.OnMouseUp(addon.bar, "RightButton")
+equal(state.menuOwner, addon.bar)
+local choices = state.visibilityChoices
+local count = 0
+for _, choice in pairs(choices) do
+    count = count + 1
+    equal(choice.selected(), true, "All providers default to enabled")
+end
+equal(count, 9, "Includes currently absent mail")
+Hover("Gold")
+local tickerBeforeHide = addon.tooltipTicker
+choices.Money.toggle()
+state.drain()
+equal(choices.Money.selected(), false)
+equal(modules.Gold.hoverFrame.shown, false)
+equal(addon.infoTooltip.shown, false)
+equal(tickerBeforeHide.cancelled, true)
+equal(env.ToplineSettingsDB.hiddenItems.Gold, true)
+state.money = state.money + 100
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.gained, 100, "Hidden money continues tracking")
+choices.Money.toggle()
+state.drain()
+equal(modules.Gold.hoverFrame.shown, true)
+equal(modules.Gold.gained, 100, "Showing an item does not reset it")
+modules.Gold.hoverFrame.scripts.OnMouseUp(modules.Gold.hoverFrame, "RightButton")
+equal(type(state.resetAction), "function", "Keep existing item reset action")
+for _, module in ipairs(addon.modules) do addon:SetItemEnabled(module, false) end
+state.drain()
+equal(addon.text.text, "")
+equal(addon.rightText.text, "")
+for _, module in ipairs(addon.modules) do
+    if module.hoverFrame then equal(module.hoverFrame.shown, false) end
+end
+addon.bar.scripts.OnMouseUp(addon.bar, "RightButton")
+state.visibilityChoices.Clock.toggle()
+state.drain()
+equal(addon.rightText.text, modules.Clock.text, "Empty bar retains a recovery menu")
+equal(modules.Clock.hoverFrame.shown, true)
+local savedSettings = CopySaved(env.ToplineSettingsDB)
+state, addon, modules, env = NewSession({ ToplineSettingsDB = savedSettings })
+equal(addon:IsItemEnabled(modules.Gold), false, "Hidden choice survives SavedVariables reload")
+equal(addon:IsItemEnabled(modules.Clock), true)
+equal(addon.text.text, "")
+state, addon, modules, env = NewSession()
+equal(addon:IsItemEnabled(modules.Gold), true, "Another character keeps default choices")
+state, addon, modules = NewSession({ ToplineSettingsDB = { hiddenItems = "invalid" } })
+equal(addon:IsItemEnabled(modules.Gold), true, "Malformed preferences default safely")
+state, addon, modules = NewSession({ ToplineSettingsDB = { hiddenItems = { Gold = "false" } } })
+equal(addon:IsItemEnabled(modules.Gold), true, "Only true disables an item")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
