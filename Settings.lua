@@ -21,6 +21,11 @@ function Topline:SetItemEnabled(module, enabled)
     self:RequestRender()
 end
 
+function Topline:RestoreItemDefaults()
+    for name in pairs(hiddenItems) do hiddenItems[name] = nil end
+    self:RequestRender()
+end
+
 function Topline:OpenBarMenu(module)
     if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
     self:HideInfoTooltip()
@@ -33,5 +38,7 @@ function Topline:OpenBarMenu(module)
                 function() return self:IsItemEnabled(item) end,
                 function() self:SetItemEnabled(item, not self:IsItemEnabled(item)) end)
         end
+        items:CreateDivider()
+        items:CreateButton("Restore defaults", function() self:RestoreItemDefaults() end)
     end)
 end

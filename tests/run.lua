@@ -731,7 +731,7 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
         CreateTitle = function(_, text) state.menu.title = text end,
         CreateButton = function(_, text, callback)
             if callback then state.menu.label, state.menu.reset = text, callback end
-            return { CreateCheckbox = function() end }
+            return { CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end }
         end,
     })
 end }
@@ -944,7 +944,7 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
         CreateTitle = function(_, text) state.menu.title = text end,
         CreateButton = function(_, text, callback)
             if callback then state.menu.label, state.menu.reset = text, callback end
-            return { CreateCheckbox = function() end }
+            return { CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end }
         end,
     })
 end }
@@ -1010,7 +1010,12 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
             if callback then state.resetAction = callback end
             return { CreateCheckbox = function(_, text, selected, toggle)
                 state.visibilityChoices[text] = { selected = selected, toggle = toggle }
-            end }
+            end,
+                CreateDivider = function() end,
+                CreateButton = function(_, text, action)
+                    state.restoreLabel, state.restoreDefaults = text, action
+                end,
+            }
         end,
     })
 end }
@@ -1055,6 +1060,26 @@ state.visibilityChoices.Clock.toggle()
 state.drain()
 equal(addon.rightText.text, modules.Clock.text, "Empty bar retains a recovery menu")
 equal(modules.Clock.hoverFrame.shown, true)
+local hiddenBeforeRestore = CopySaved(env.ToplineSettingsDB)
+equal(state.restoreLabel, "Restore defaults")
+state.xp = 950
+state:refresh("PLAYER_XP_UPDATE", "player")
+addon:RecordTravel(25)
+env.ToplineSettingsDB.futurePreference = "keep"
+state.restoreDefaults()
+state.drain()
+for _, module in ipairs(addon.modules) do equal(addon:IsItemEnabled(module), true) end
+equal(next(env.ToplineSettingsDB.hiddenItems), nil, "Restore removes saved overrides")
+equal(env.ToplineSettingsDB.futurePreference, "keep", "Other settings remain untouched")
+equal(modules.Gold.gained, 100, "Money session preserved by restore")
+equal(modules.Experience.gained, 50, "XP session preserved by restore")
+equal(env.ToplineCharDB.pedometer.totalYards, 25, "Travel preserved by restore")
+equal(modules.Mail.text, "", "Enabled mail remains conditional")
+equal(modules.Gold.hoverFrame.shown, true, "Restored items render immediately")
+local restoredSettings = CopySaved(env.ToplineSettingsDB)
+state, addon, modules = NewSession({ ToplineSettingsDB = restoredSettings })
+equal(addon:IsItemEnabled(modules.Gold), true, "Restored defaults survive reload")
+state, addon, modules, env = NewSession({ ToplineSettingsDB = hiddenBeforeRestore })
 local savedSettings = CopySaved(env.ToplineSettingsDB)
 state, addon, modules, env = NewSession({ ToplineSettingsDB = savedSettings })
 equal(addon:IsItemEnabled(modules.Gold), false, "Hidden choice survives SavedVariables reload")

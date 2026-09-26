@@ -96,7 +96,9 @@ separator, or hover area. Clearing mail follows the client's notification timing
 ## Item visibility
 
 Right-click any item or empty space on the strip, then open **Show/hide items**.
-Checkboxes control each provider (FPS/latency share one item). XP and money retain
+Checkboxes control each provider (FPS/latency share one item). **Restore defaults**
+at the bottom of this submenu enables all items and clears saved visibility
+overrides for this character, without resetting XP, money, or travel data. XP and money retain
 their **Reset session** actions in the same menu. The strip remains available even
 when everything is hidden, so right-click it to restore items. Enabling Mail still
 shows it only when mail is waiting. Hidden items leave no separators or hover areas.
