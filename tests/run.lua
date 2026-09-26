@@ -7,6 +7,13 @@ local function equal(actual, expected, message)
         .. tostring(expected) .. ", got " .. tostring(actual))
 end
 
+local function EmptyMenu()
+    return {
+        CreateTitle = function() end, CreateDivider = function() end,
+        CreateCheckbox = function() end, CreateButton = function() return EmptyMenu() end,
+    }
+end
+
 local function NewSession(options)
     options = options or {}
     local state = {
@@ -731,7 +738,7 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
         CreateTitle = function(_, text) state.menu.title = text end,
         CreateButton = function(_, text, callback)
             if callback then state.menu.label, state.menu.reset = text, callback end
-            return { CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end }
+            return EmptyMenu()
         end,
     })
 end }
@@ -944,7 +951,7 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
         CreateTitle = function(_, text) state.menu.title = text end,
         CreateButton = function(_, text, callback)
             if callback then state.menu.label, state.menu.reset = text, callback end
-            return { CreateCheckbox = function() end, CreateDivider = function() end, CreateButton = function() end }
+            return EmptyMenu()
         end,
     })
 end }
@@ -1007,6 +1014,7 @@ env.MenuUtil = { CreateContextMenu = function(owner, generator)
     generator(owner, {
         CreateTitle = function() end,
         CreateButton = function(_, label, callback)
+            if label == "Reorder items" then return EmptyMenu() end
             if callback then state.resetAction = callback end
             return { CreateCheckbox = function(_, text, selected, toggle)
                 state.visibilityChoices[text] = { selected = selected, toggle = toggle }
@@ -1091,4 +1099,78 @@ state, addon, modules = NewSession({ ToplineSettingsDB = { hiddenItems = "invali
 equal(addon:IsItemEnabled(modules.Gold), true, "Malformed preferences default safely")
 state, addon, modules = NewSession({ ToplineSettingsDB = { hiddenItems = { Gold = "false" } } })
 equal(addon:IsItemEnabled(modules.Gold), true, "Only true disables an item")
+-- Reorder menu actions move within a side and persist without changing tracking.
+state, addon, modules, env = NewSession()
+local function MenuTree()
+    local tree = { buttons = {} }
+    function tree:CreateTitle() end
+    function tree:CreateDivider() end
+    function tree:CreateCheckbox() end
+    function tree:CreateButton(label, action)
+        local entry = MenuTree()
+        entry.action = action
+        self.buttons[label] = entry
+        return entry
+    end
+    return tree
+end
+env.MenuUtil = { CreateContextMenu = function(owner, generator)
+    state.menuTree = MenuTree()
+    generator(owner, state.menuTree)
+end }
+state.money = state.money + 200
+state:refresh("PLAYER_MONEY")
+state.xp = 950
+state:refresh("PLAYER_XP_UPDATE", "player")
+addon:RecordTravel(10)
+addon:OpenBarMenu()
+local reorder = state.menuTree.buttons["Reorder items"]
+equal(reorder.buttons["Zone / coordinates"].buttons["Move left"], nil, "Left boundary")
+equal(reorder.buttons["FPS / latency"].buttons["Move left"], nil, "Cannot cross groups")
+equal(reorder.buttons.Clock.buttons["Move right"], nil, "Right boundary")
+local oldClockX = select(4, modules.Clock.hoverFrame:GetPoint(1))
+reorder.buttons.Clock.buttons["Move left"].action()
+state.drain()
+equal(addon.modules[8].name, "Clock", "Move past currently absent mail")
+addon:OpenBarMenu()
+state.menuTree.buttons["Reorder items"].buttons.Clock.buttons["Move left"].action()
+state.drain()
+equal(addon.rightText.text:sub(1, #modules.Clock.text), modules.Clock.text)
+equal(select(4, modules.Clock.hoverFrame:GetPoint(1)) < oldClockX, true, "Hover target follows reordered text")
+addon:OpenBarMenu()
+state.menuTree.buttons["Reorder items"].buttons.Money.buttons["Move left"].action()
+state.drain()
+equal(addon.modules[2].name, "Gold")
+equal(modules.Gold.gained, 200)
+equal(modules.Experience.gained, 50)
+equal(env.ToplineCharDB.pedometer.totalYards, 10)
+addon:SetItemEnabled(modules.Gold, false)
+addon:MoveItem(modules.Gold, -1)
+state.drain()
+equal(addon.modules[1].name, "Gold", "Hidden items can be arranged")
+equal(modules.Gold.hoverFrame.shown, false)
+addon:RestoreItemDefaults()
+state.drain()
+equal(addon.modules[1].name, "Gold", "Visibility restore preserves order")
+addon:SetItemEnabled(modules.Gold, false)
+local orderSettings = CopySaved(env.ToplineSettingsDB)
+state, addon, modules, env = NewSession({ ToplineSettingsDB = orderSettings })
+equal(addon.modules[1].name, "Gold", "Order survives SavedVariables reload")
+equal(addon.modules[7].name, "Clock")
+equal(addon:IsItemEnabled(modules.Gold), false)
+addon:RestoreItemOrder()
+state.drain()
+equal(addon.modules[1].name, "Zone")
+equal(addon.modules[9].name, "Clock")
+equal(env.ToplineSettingsDB.itemOrder, nil)
+equal(addon:IsItemEnabled(modules.Gold), false, "Order restore preserves visibility")
+state, addon, modules = NewSession({ ToplineSettingsDB = { itemOrder = { "Clock", "Gold", "Gold", false, "Removed", "Zone" } } })
+equal(addon.modules[1].name, "Gold")
+equal(addon.modules[2].name, "Zone")
+equal(addon.modules[3].name, "Experience", "Unlisted/new providers append in default order")
+equal(addon.modules[7].name, "Clock", "Saved sides never interleave")
+equal(#addon.modules, 9, "Duplicates and unknown names do not lose modules")
+state, addon, modules = NewSession({ ToplineSettingsDB = { itemOrder = "invalid" } })
+equal(addon.modules[1].name, "Zone")
+equal(addon.modules[9].name, "Clock")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

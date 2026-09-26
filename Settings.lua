@@ -10,6 +10,56 @@ function Topline:InitializeSettings()
     if type(ToplineSettingsDB) ~= "table" then ToplineSettingsDB = {} end
     if type(ToplineSettingsDB.hiddenItems) ~= "table" then ToplineSettingsDB.hiddenItems = {} end
     hiddenItems = ToplineSettingsDB.hiddenItems
+    self:ApplyItemOrder()
+end
+
+function Topline:ApplyItemOrder()
+    local ranks, nextRank = {}, 0
+    if type(ToplineSettingsDB.itemOrder) == "table" then
+        for _, name in ipairs(ToplineSettingsDB.itemOrder) do
+            if type(name) == "string" and self:GetModule(name) and not ranks[name] then
+                nextRank = nextRank + 1
+                ranks[name] = nextRank
+            end
+        end
+    end
+    table.sort(self.modules, function(a, b)
+        local aRight, bRight = a.side == "right", b.side == "right"
+        if aRight ~= bRight then return not aRight end
+        local ar, br = ranks[a.name], ranks[b.name]
+        if ar and br then return ar < br end
+        if ar or br then return ar ~= nil end
+        return a.order < b.order
+    end)
+end
+
+function Topline:ItemNeighbor(module, direction)
+    for index, item in ipairs(self.modules) do
+        if item == module then
+            local other = index + direction
+            local neighbor = self.modules[other]
+            if neighbor and (neighbor.side == "right") == (item.side == "right") then return index, other end
+        end
+    end
+end
+
+function Topline:MoveItem(module, direction)
+    if direction ~= -1 and direction ~= 1 then return end
+    local index, other = self:ItemNeighbor(module, direction)
+    if not index then return end
+    self.modules[index], self.modules[other] = self.modules[other], self.modules[index]
+    local order = {}
+    for position, item in ipairs(self.modules) do order[position] = item.name end
+    ToplineSettingsDB.itemOrder = order
+    self:HideInfoTooltip()
+    self:RequestRender()
+end
+
+function Topline:RestoreItemOrder()
+    ToplineSettingsDB.itemOrder = nil
+    self:ApplyItemOrder()
+    self:HideInfoTooltip()
+    self:RequestRender()
 end
 
 function Topline:IsItemEnabled(module)
@@ -40,5 +90,20 @@ function Topline:OpenBarMenu(module)
         end
         items:CreateDivider()
         items:CreateButton("Restore defaults", function() self:RestoreItemDefaults() end)
+        local ordering = root:CreateButton("Reorder items")
+        local previousSide
+        for _, item in ipairs(self.modules) do
+            local side = item.side == "right" and "Right side" or "Left side"
+            if previousSide ~= side then ordering:CreateTitle(side); previousSide = side end
+            local entry = ordering:CreateButton(labels[item.name] or item.name)
+            if self:ItemNeighbor(item, -1) then
+                entry:CreateButton("Move left", function() self:MoveItem(item, -1) end)
+            end
+            if self:ItemNeighbor(item, 1) then
+                entry:CreateButton("Move right", function() self:MoveItem(item, 1) end)
+            end
+        end
+        ordering:CreateDivider()
+        ordering:CreateButton("Restore default order", function() self:RestoreItemOrder() end)
     end)
 end

@@ -110,6 +110,19 @@ They rely on WoW loading SavedVariables; the Forever travel CVar workaround does
 not back up these preferences. The beta's disk-loading bug can therefore reset
 visibility choices if it drops SavedVariables.
 
+## Item order
+
+Right-click the strip, open **Reorder items**, select an item, and choose
+**Move left** or **Move right**. Reopen the menu for additional moves. Items stay
+within their existing left/right group; FPS and latency remain one item. Hidden
+items and conditional mail are included in the ordering list.
+
+**Restore default order** resets positions only. The visibility menu's
+**Restore defaults** still resets visibility only. Neither resets tracking.
+Order is stored per character in `ToplineSettingsDB.itemOrder` and shares the
+SavedVariables limitation described above. Newly added providers not in a saved
+order follow the arranged items in their group's default order.
+
 ## Hover details
 
 Hover any item for a native WoW tooltip below the strip. Right-click XP/hr and
