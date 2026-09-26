@@ -19,7 +19,7 @@ addon does not appear, restart the client so it discovers the folder.
   at the bar's thin height. Artwork uses a neutral white tint; a soft lower shadow
   finishes the edge. Native small font and muted
   pipe separators keep the text readable. See `Media/README.md` for asset provenance.
-  It inherits UI scale; transparent hover regions receive mouse motion. The XP item also accepts clicks for its context menu.
+  It inherits UI scale; transparent hover regions receive mouse motion. The XP and money items also accept clicks for their context menus.
 - The layout helper reserves the strip's height plus two UI units of clearance
   by translating overlapping Blizzard buffs, debuffs, minimap, player, target,
   focus, and objective tracker frames below it. It preserves their relative
@@ -49,7 +49,9 @@ addon does not appear, restart the client so it discovers the folder.
   not categorized transactions. Multiple transactions between readable updates
   may combine. Missing/restricted samples retain the last readable balance;
   the next valid balance contributes only its net difference. Login or `/reload`
-  starts fresh counters; these session statistics are not saved.
+  starts fresh counters; these session statistics are not saved. Right-click the
+  money item and choose **Reset session** to clear gained/spent/net counters and
+  use the current readable balance as a new baseline. XP and travel are unaffected.
 - Bags count occupied slots in the backpack and four normal equipped bags
   (indexes 0–4), including specialty bags in those slots. Reagent bags, keyrings,
   and all bank storage are excluded. Uses `BAG_UPDATE_DELAYED` and equipment events.

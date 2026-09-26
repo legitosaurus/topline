@@ -17,8 +17,16 @@ end
 Topline:RegisterModule("Gold", {
     order = 30,
     events = { "PLAYER_MONEY" },
+    menu = function(self, root)
+        root:CreateTitle("Money session")
+        root:CreateButton("Reset session", function()
+            Topline:RefreshModule(self, "RESET_SESSION")
+            if Topline.hoveredModule == self then Topline:RefreshInfoTooltip() end
+        end)
+    end,
     tooltip = function(self, tip)
         tip:AddLine("Money", 1, 0.82, 0)
+        tip:AddLine("Right-click money to reset this session.", 0.65, 0.65, 0.65)
         Topline:TooltipRow(tip, "Current character", self.text)
         tip:AddLine(" ")
         Topline:TooltipRow(tip, "Gained this session", FormatMoney(self.gained))
@@ -32,7 +40,12 @@ Topline:RegisterModule("Gold", {
         tip:AddLine("Carried money; bank and other characters are excluded.", 0.65, 0.65, 0.65, true)
         tip:AddLine("Tracks observed balance changes, including transfers. Login or /reload starts a new session.", 0.65, 0.65, 0.65, true)
     end,
-    update = function(self)
+    update = function(self, event)
+        if event == "RESET_SESSION" then
+            self.gained, self.spent, self.lastMoney = 0, 0, nil
+            -- If money is temporarily unreadable, the next valid balance is
+            -- the baseline; never carry a pre-reset delta into the new session.
+        end
         local money = GetMoney and GetMoney()
         if (issecretvalue and issecretvalue(money))
             or (canaccessvalue and not canaccessvalue(money)) then return "Gold: N/A" end

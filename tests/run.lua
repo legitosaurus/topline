@@ -614,7 +614,7 @@ local function Hover(name)
 end
 for name, module in pairs(modules) do
     if module.text ~= "" then
-    equal(module.hoverFrame.mouse, name == "Experience", name .. " click handling")
+    equal(module.hoverFrame.mouse, name == "Experience" or name == "Gold", name .. " click handling")
     equal(module.hoverFrame.mouseMotion, true)
     Hover(name)
     equal(addon.infoTooltip.shown, true)
@@ -933,4 +933,64 @@ equal(modules.Gold.spent, 0)
 state, addon, modules = NewSession()
 equal(modules.Gold.gained, 0, "Reload/login starts new money counters")
 equal(modules.Gold.spent, 0)
+-- Money context-menu reset is independent of XP and travel sessions.
+state, addon, modules, env = NewSession()
+env.MenuUtil = { CreateContextMenu = function(owner, generator)
+    state.menu = {}
+    generator(owner, {
+        CreateTitle = function(_, text) state.menu.title = text end,
+        CreateButton = function(_, text, callback) state.menu.label, state.menu.reset = text, callback end,
+    })
+end }
+state.xp = 950
+state:refresh("PLAYER_XP_UPDATE", "player")
+addon:RecordTravel(123)
+state.money = state.money + 500
+state:refresh("PLAYER_MONEY")
+state.money = state.money - 100
+state:refresh("PLAYER_MONEY")
+local goldRegion = modules.Gold.hoverFrame
+goldRegion.scripts.OnMouseUp(goldRegion, "LeftButton")
+equal(state.menu, nil)
+Hover("Gold")
+local goldTicker = addon.tooltipTicker
+goldRegion.scripts.OnMouseUp(goldRegion, "RightButton")
+equal(state.menu.title, "Money session")
+equal(state.menu.label, "Reset session")
+equal(modules.Gold.gained, 500, "Opening menu preserves money stats")
+equal(modules.Gold.spent, 100)
+equal(goldTicker.cancelled, true)
+local currentBalance = state.money
+state.menu.reset()
+state.drain()
+Hover("Gold")
+equal(PlainMoney(Row("Gained this session")), "0g 0s 0c")
+equal(PlainMoney(Row("Spent this session")), "0g 0s 0c")
+equal(PlainMoney(Row("Net change")), "0g 0s 0c")
+equal(state.money, currentBalance, "Reset never changes actual money")
+equal(modules.Experience.gained, 50, "XP session preserved")
+equal(env.ToplineCharDB.pedometer.totalYards, 123, "Travel history preserved")
+state.money = currentBalance + 30
+state:refresh("PLAYER_MONEY")
+state.money = currentBalance + 20
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.gained, 30)
+equal(modules.Gold.spent, 10)
+state.menu.reset()
+equal(PlainMoney(Row("Net change")), "0g 0s 0c", "Reset refreshes open tooltip")
+env.GetMoney = false
+state.menu.reset()
+equal(modules.Gold.gained, 0)
+equal(modules.Gold.spent, 0)
+equal(modules.Gold.lastMoney, nil)
+state.money = currentBalance + 10000
+env.GetMoney = function() return state.money end
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.gained, 0, "First readable post-reset balance is not income")
+equal(modules.Gold.lastMoney, state.money)
+env.issecretvalue = function(value) return rawequal(value, secret) end
+state.money = secret
+state.menu.reset()
+equal(modules.Gold.lastMoney, nil, "Restricted balance cannot seed reset")
+equal(#state.messages, 0)
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
