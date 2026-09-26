@@ -113,13 +113,14 @@ visibility choices if it drops SavedVariables.
 ## Item order
 
 Right-click the strip, open **Reorder items**, select an item, and choose
-**Move left** or **Move right**. Reopen the menu for additional moves. Items stay
-within their existing left/right group; FPS and latency remain one item. Hidden
+**Move left** or **Move right**. Reopen the menu for additional moves. Use **Move to left group** or **Move to right group** in the same item submenu
+to transfer it to the end of that group. FPS and latency remain one item. Hidden
 items and conditional mail are included in the ordering list.
 
-**Restore default order** resets positions only. The visibility menu's
+**Restore default order** resets positions and original left/right groups only. The visibility menu's
 **Restore defaults** still resets visibility only. Neither resets tracking.
-Order is stored per character in `ToplineSettingsDB.itemOrder` and shares the
+Order and group overrides are stored per character in `ToplineSettingsDB.itemOrder`
+and `ToplineSettingsDB.itemSides` and share the
 SavedVariables limitation described above. Newly added providers not in a saved
 order follow the arranged items in their group's default order.
 

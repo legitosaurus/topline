@@ -14,6 +14,11 @@ function Topline:InitializeSettings()
 end
 
 function Topline:ApplyItemOrder()
+    local sides = type(ToplineSettingsDB.itemSides) == "table" and ToplineSettingsDB.itemSides or {}
+    for _, item in ipairs(self.modules) do
+        local side = sides[item.name]
+        item.side = (side == "left" or side == "right") and side or item.defaultSide
+    end
     local ranks, nextRank = {}, 0
     if type(ToplineSettingsDB.itemOrder) == "table" then
         for _, name in ipairs(ToplineSettingsDB.itemOrder) do
@@ -48,15 +53,39 @@ function Topline:MoveItem(module, direction)
     local index, other = self:ItemNeighbor(module, direction)
     if not index then return end
     self.modules[index], self.modules[other] = self.modules[other], self.modules[index]
+    self:SaveItemOrder()
+    self:HideInfoTooltip()
+    self:RequestRender()
+end
+
+function Topline:SaveItemOrder()
     local order = {}
     for position, item in ipairs(self.modules) do order[position] = item.name end
     ToplineSettingsDB.itemOrder = order
+end
+
+function Topline:MoveItemToGroup(module, side)
+    if side ~= "left" and side ~= "right" then return end
+    if module.side == side then return end
+    for index, item in ipairs(self.modules) do
+        if item == module then
+            table.remove(self.modules, index)
+            table.insert(self.modules, module)
+            if type(ToplineSettingsDB.itemSides) ~= "table" then ToplineSettingsDB.itemSides = {} end
+            ToplineSettingsDB.itemSides[module.name] = side ~= module.defaultSide and side or nil
+            -- Sort by group after saving: the moved item lands last in its new group.
+            self:SaveItemOrder()
+            self:ApplyItemOrder()
+            break
+        end
+    end
     self:HideInfoTooltip()
     self:RequestRender()
 end
 
 function Topline:RestoreItemOrder()
     ToplineSettingsDB.itemOrder = nil
+    ToplineSettingsDB.itemSides = nil
     self:ApplyItemOrder()
     self:HideInfoTooltip()
     self:RequestRender()
@@ -102,6 +131,11 @@ function Topline:OpenBarMenu(module)
             if self:ItemNeighbor(item, 1) then
                 entry:CreateButton("Move right", function() self:MoveItem(item, 1) end)
             end
+            entry:CreateDivider()
+            local destination = item.side == "right" and "left" or "right"
+            entry:CreateButton("Move to " .. destination .. " group", function()
+                self:MoveItemToGroup(item, destination)
+            end)
         end
         ordering:CreateDivider()
         ordering:CreateButton("Restore default order", function() self:RestoreItemOrder() end)

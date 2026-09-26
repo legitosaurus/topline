@@ -12,6 +12,7 @@ end
 function Topline:RegisterModule(name, module)
     assert(not started and not byName[name], "Topline: duplicate or late module registration")
     module.name = name
+    module.defaultSide = module.side == "right" and "right" or "left"
     module.text = name .. ": N/A"
     byName[name] = module
     self.modules[#self.modules + 1] = module
