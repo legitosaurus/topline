@@ -602,7 +602,7 @@ local function Hover(name)
     region.scripts.OnEnter(region)
 end
 for name, module in pairs(modules) do
-    equal(module.hoverFrame.mouse, false, name .. " does not intercept clicks")
+    equal(module.hoverFrame.mouse, name == "Experience", name .. " click handling")
     equal(module.hoverFrame.mouseMotion, true)
     Hover(name)
     equal(addon.infoTooltip.shown, true)
@@ -660,11 +660,11 @@ state, addon, modules = NewSession({ COMBATLOG_XPGAIN_FIRSTPERSON = "%2$d XP fro
 equal(modules.Experience.ParseKillXP("42 XP from Unit 9000."), 42, "Localized positional placeholders")
 state, addon, modules = NewSession({ UnitXP = false, GetXPExhaustion = false })
 Hover("Experience")
-equal(addon.infoTooltip.lines[5][1], "XP information unavailable.")
+equal(addon.infoTooltip.lines[6][1], "XP information unavailable.")
 state, addon, modules = NewSession()
 state.level, state.cap = 60, 0
 Hover("Experience")
-equal(addon.infoTooltip.lines[5][1], "Maximum level reached.")
+equal(addon.infoTooltip.lines[6][1], "Maximum level reached.")
 -- Lua 5.1 has no secret values. An opaque sentinel plus an overridden type()
 -- models the key failure: a value can report "number" yet reject arithmetic.
 local secret = setmetatable({}, {
@@ -709,4 +709,63 @@ state.speed = 8
 state:tick(0.25)
 state:tick(0.25)
 equal(modules.Pedometer.total, 2, "Speed fallback resumes after restriction")
+-- Right-click opens a menu; only choosing Reset session mutates XP tracking.
+state, addon, modules, env = NewSession()
+env.MenuUtil = { CreateContextMenu = function(owner, generator)
+    state.menuOwner = owner
+    state.menu = {}
+    generator(owner, {
+        CreateTitle = function(_, text) state.menu.title = text end,
+        CreateButton = function(_, text, callback) state.menu.label, state.menu.reset = text, callback end,
+    })
+end }
+state.xp = 950
+state:refresh("PLAYER_XP_UPDATE", "player")
+state:refresh("CHAT_MSG_COMBAT_XP_GAIN", "Wolf dies, you gain 50 experience.")
+state:tick(120)
+addon:RecordTravel(123)
+local xpRegion = modules.Experience.hoverFrame
+xpRegion.scripts.OnMouseUp(xpRegion, "LeftButton")
+equal(state.menu, nil, "Left click does not open reset menu")
+Hover("Experience")
+local hoverTicker = addon.tooltipTicker
+xpRegion.scripts.OnMouseUp(xpRegion, "RightButton")
+equal(state.menuOwner, xpRegion)
+equal(state.menu.label, "Reset session")
+equal(hoverTicker.cancelled, true)
+equal(modules.Experience.gained, 50, "Opening or dismissing menu does not reset")
+state.menu.reset()
+state.drain()
+equal(modules.Experience.gained, 0)
+equal(modules.Experience.startedAt, 120)
+equal(modules.Experience.startXP, 950)
+equal(modules.Experience.lastGain, nil)
+equal(modules.Experience.lastKillXP, nil)
+equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A")
+equal(env.ToplineCharDB.pedometer.totalYards, 123, "XP reset preserves travel history")
+state.xp = 975
+state:refresh("PLAYER_XP_UPDATE", "player")
+state:tick(60)
+equal(modules.Experience.gained, 25)
+equal(modules.Experience.text, "XP/hr: 1.5k, Time to Level: 1m")
+-- Reset while a level-up sample is pending: stale APIs cannot become baseline.
+state:event("PLAYER_LEVEL_UP", 11)
+state.menu.reset()
+equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A")
+state.level, state.xp, state.cap = 11, 20, 1200
+state.drain()
+equal(modules.Experience.startXP, 20)
+equal(modules.Experience.gained, 0)
+state.xp = 30
+state:refresh("PLAYER_XP_UPDATE", "player")
+equal(modules.Experience.gained, 10)
+modules.Experience.incomplete = true
+state.menu.reset()
+equal(modules.Experience.incomplete, nil, "Reset recovers incomplete sessions")
+env.UnitXP = false
+state.menu.reset()
+equal(modules.Experience.text, "XP/hr: N/A, Time to Level: N/A", "Unavailable APIs remain safe")
+env.MenuUtil = false
+xpRegion.scripts.OnMouseUp(xpRegion, "RightButton")
+equal(#state.messages, 0)
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")

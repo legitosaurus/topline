@@ -51,6 +51,7 @@ end
 
 function module:tooltip(tip)
     tip:AddLine("XP Info", 1, 0.82, 0)
+    tip:AddLine("Right-click XP/hr to reset this session.", 0.65, 0.65, 0.65)
     local now = GetTime and GetTime()
     local elapsed = now and self.startedAt and math.max(0, now - self.startedAt)
     Topline:TooltipRow(tip, "Time played this session", Topline:Duration(elapsed))

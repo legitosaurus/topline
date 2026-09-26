@@ -84,6 +84,14 @@ function Topline:LayoutHoverRegions(separator, leftWidth, rightWidth)
                 module.hoverFrame = region
                 region:EnableMouse(false)
                 if region.EnableMouseMotion then region:EnableMouseMotion(true) else region:EnableMouse(true) end
+                if module.menu then
+                    region:EnableMouse(true)
+                    region:SetScript("OnMouseUp", function(owner, button)
+                        if button ~= "RightButton" or not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+                        self:HideInfoTooltip()
+                        MenuUtil.CreateContextMenu(owner, function(_, root) module:menu(root) end)
+                    end)
+                end
                 region:SetScript("OnEnter", function() self:ShowInfoTooltip(module) end)
                 region:SetScript("OnLeave", function()
                     if self.hoveredModule == module then self:HideInfoTooltip() end

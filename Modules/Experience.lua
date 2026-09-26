@@ -31,7 +31,21 @@ Topline:RegisterModule("Experience", {
     order = 20,
     events = { "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "CHAT_MSG_COMBAT_XP_GAIN" },
     interval = 5,
+    menu = function(self, root)
+        root:CreateTitle("XP session")
+        root:CreateButton("Reset session", function()
+            Topline:RefreshModule(self, "RESET_SESSION")
+            if Topline.hoveredModule == self then Topline:RefreshInfoTooltip() end
+        end)
+    end,
     update = function(self, event, unitOrLevel)
+        if event == "RESET_SESSION" then
+            self.startedAt, self.startXP, self.startLevel = nil, nil, nil
+            self.lastXP, self.lastCap, self.lastLevel = nil, nil, nil
+            self.gained, self.incomplete, self.lastGain, self.lastKillXP = 0, nil, nil, nil
+            -- Keep an outstanding level-up guard/deferred sample: its APIs may
+            -- still be stale. The next settled sample becomes the new baseline.
+        end
         if event == "CHAT_MSG_COMBAT_XP_GAIN" then
             local killXP = self.ParseKillXP and self.ParseKillXP(unitOrLevel)
             if killXP then
@@ -58,7 +72,10 @@ Topline:RegisterModule("Experience", {
             or xp < 0 or cap < 0 or level < 1 then
             return unavailable
         end
-        if self.pendingLevel and level < self.pendingLevel then return end
+        if self.pendingLevel and level < self.pendingLevel then
+            if event == "RESET_SESSION" then return unavailable end
+            return
+        end
         self.pendingLevel = nil
 
         if not self.startedAt then

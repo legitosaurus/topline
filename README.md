@@ -19,7 +19,7 @@ addon does not appear, restart the client so it discovers the folder.
   at the bar's thin height. Artwork uses a neutral white tint; a soft lower shadow
   finishes the edge. Native small font and muted
   pipe separators keep the text readable. See `Media/README.md` for asset provenance.
-  It inherits UI scale; transparent hover regions receive mouse motion without blocking clicks on this client.
+  It inherits UI scale; transparent hover regions receive mouse motion. The XP item also accepts clicks for its context menu.
 - The layout helper reserves the strip's height plus two UI units of clearance
   by translating overlapping Blizzard buffs, debuffs, minimap, player, target,
   focus, and objective tracker frames below it. It preserves their relative
@@ -70,7 +70,10 @@ left-side information grows. Providers can opt into that region with `side = "ri
 
 ## Hover details
 
-Hover any item for a native WoW tooltip below the strip. The XP popup shows
+Hover any item for a native WoW tooltip below the strip. Right-click XP/hr and
+choose **Reset session** to restart XP tracking from the current level/XP. This
+clears its earned XP, elapsed time, and last-kill/gain estimates; rates warm up
+again for 60 seconds and require new XP. Travel history is unaffected. The XP popup shows
 session duration, session XP, current level progress, remaining and rested XP,
 last kill XP, last observed XP gain, kills/gains to level, XP/hour, and time to
 level. Kill estimates use localized named-kill chat formats; unidentified messages
