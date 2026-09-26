@@ -42,7 +42,14 @@ addon does not appear, restart the client so it discovers the folder.
   be recovered from `UnitXPMax`; estimates remain N/A for that session rather
   than inventing XP. Normal consecutive level-ups keep the session running.
 - Money uses grouped gold digits and distinct gold/silver/copper colors, updated
-  on `PLAYER_MONEY`.
+  on `PLAYER_MONEY`. Its tooltip shows money gained, spent, and signed net change
+  since the first readable balance this login/UI session. Starting wealth is not
+  counted as income; zoning and duplicate events do not reset or double-count.
+  These are observed balance increases/decreases, including trades/mail/transfers,
+  not categorized transactions. Multiple transactions between readable updates
+  may combine. Missing/restricted samples retain the last readable balance;
+  the next valid balance contributes only its net difference. Login or `/reload`
+  starts fresh counters; these session statistics are not saved.
 - Bags count occupied slots in the backpack and four normal equipped bags
   (indexes 0–4), including specialty bags in those slots. Reagent bags, keyrings,
   and all bank storage are excluded. Uses `BAG_UPDATE_DELAYED` and equipment events.

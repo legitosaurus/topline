@@ -5,21 +5,46 @@ local function GroupDigits(value)
     return (text:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
 end
 
+local function FormatMoney(money)
+    if money == nil then return "N/A" end
+    local gold = math.floor(money / 10000)
+    local silver = math.floor(money / 100) % 100
+    local copper = money % 100
+    return string.format("|cffe6c566%sg|r |cffbfc5cd%ds|r |cffcf956a%dc|r",
+        GroupDigits(gold), silver, copper)
+end
+
 Topline:RegisterModule("Gold", {
     order = 30,
     events = { "PLAYER_MONEY" },
     tooltip = function(self, tip)
         tip:AddLine("Money", 1, 0.82, 0)
         Topline:TooltipRow(tip, "Current character", self.text)
+        tip:AddLine(" ")
+        Topline:TooltipRow(tip, "Gained this session", FormatMoney(self.gained))
+        Topline:TooltipRow(tip, "Spent this session", FormatMoney(self.spent))
+        local net = self.gained and self.gained - self.spent
+        local netText = "N/A"
+        if net then
+            netText = (net > 0 and "+" or net < 0 and "-" or "") .. FormatMoney(math.abs(net))
+        end
+        Topline:TooltipRow(tip, "Net change", netText)
         tip:AddLine("Carried money; bank and other characters are excluded.", 0.65, 0.65, 0.65, true)
+        tip:AddLine("Tracks observed balance changes, including transfers. Login or /reload starts a new session.", 0.65, 0.65, 0.65, true)
     end,
-    update = function()
+    update = function(self)
         local money = GetMoney and GetMoney()
-        if type(money) ~= "number" or money < 0 then return "Gold: N/A" end
-        local gold = math.floor(money / 10000)
-        local silver = math.floor(money / 100) % 100
-        local copper = money % 100
-        return string.format("|cffe6c566%sg|r |cffbfc5cd%ds|r |cffcf956a%dc|r",
-            GroupDigits(gold), silver, copper)
+        if (issecretvalue and issecretvalue(money))
+            or (canaccessvalue and not canaccessvalue(money)) then return "Gold: N/A" end
+        if type(money) ~= "number" or money < 0 or money ~= money or money == math.huge then return "Gold: N/A" end
+        if self.lastMoney == nil then
+            self.gained, self.spent = 0, 0
+        else
+            local change = money - self.lastMoney
+            if change > 0 then self.gained = self.gained + change
+            elseif change < 0 then self.spent = self.spent - change end
+        end
+        self.lastMoney = money
+        return FormatMoney(money)
     end,
 })

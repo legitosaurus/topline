@@ -882,4 +882,55 @@ state, addon, modules = NewSession({ HasNewMail = false })
 equal(modules.Mail.text, "", "Missing mail API does not clutter the bar")
 state, addon, modules = NewSession({ HasNewMail = function() return true end })
 equal(modules.Mail.hoverFrame.shown, true, "Mail present at login displays immediately")
+-- Money session deltas distinguish earnings and spending without counting login wealth.
+state, addon, modules, env = NewSession()
+local function PlainMoney(value)
+    return value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+end
+equal(modules.Gold.gained, 0)
+equal(modules.Gold.spent, 0)
+Hover("Gold")
+equal(PlainMoney(Row("Net change")), "0g 0s 0c")
+local startingMoney = state.money
+state.money = startingMoney + 123456
+state:refresh("PLAYER_MONEY")
+state.money = state.money - 23457
+state:refresh("PLAYER_MONEY")
+state:tick(1)
+equal(PlainMoney(Row("Gained this session")), "12g 34s 56c")
+equal(PlainMoney(Row("Spent this session")), "2g 34s 57c")
+equal(PlainMoney(Row("Net change")), "+9g 99s 99c")
+state:refresh("PLAYER_MONEY")
+state:refresh("PLAYER_ENTERING_WORLD")
+equal(modules.Gold.gained, 123456, "Duplicate events and zoning do not count twice")
+equal(modules.Gold.spent, 23457)
+state.money = startingMoney - 1
+state:refresh("PLAYER_MONEY")
+addon:RefreshInfoTooltip()
+equal(PlainMoney(Row("Net change")), "-0g 0s 1c", "Negative net preserves copper precision")
+state.money = startingMoney
+state:refresh("PLAYER_MONEY")
+addon:RefreshInfoTooltip()
+equal(PlainMoney(Row("Net change")), "0g 0s 0c")
+local previousGained, previousSpent = modules.Gold.gained, modules.Gold.spent
+env.issecretvalue = function(value) return rawequal(value, secret) end
+state.money = secret
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.text, "Gold: N/A")
+equal(modules.Gold.gained, previousGained)
+equal(modules.Gold.spent, previousSpent)
+state.money = startingMoney + 100
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.gained, previousGained + 100, "Recovery compares to last readable balance")
+equal(#state.messages, 0)
+state, addon, modules, env = NewSession({ GetMoney = false })
+Hover("Gold")
+equal(Row("Gained this session"), "N/A", "Unavailable starting balance is not an earning")
+env.GetMoney = function() return state.money end
+state:refresh("PLAYER_MONEY")
+equal(modules.Gold.gained, 0, "First readable balance initializes session")
+equal(modules.Gold.spent, 0)
+state, addon, modules = NewSession()
+equal(modules.Gold.gained, 0, "Reload/login starts new money counters")
+equal(modules.Gold.spent, 0)
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
