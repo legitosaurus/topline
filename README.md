@@ -92,3 +92,13 @@ and the exact error message or a screenshot. For layout issues, include your UI
 scale and which items are in each group.
 
 Developer reference: [implementation and validation notes](DEVELOPMENT.md).
+
+## License
+
+Topline's addon code and documentation are licensed under the [MIT License](LICENSE).
+Copyright (c) 2026 dega.io.
+
+The bundled generated textures are also offered under MIT to the extent of the
+project's rights in them; see [artwork provenance](Media/README.md). The license
+does not grant rights to Blizzard's game artwork or trademarks visible in the
+gameplay screenshots. Topline is not affiliated with or endorsed by Blizzard Entertainment.

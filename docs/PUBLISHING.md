@@ -42,5 +42,11 @@ whether you want them in a public listing. The supplied image has not been edite
 
 Describe support as Forever / `_classic_beta_`, Interface 16001, until other
 clients have actually been validated. Preserve the README's short beta storage
-note. This documentation update does not publish a project, select a license,
-or certify compatibility with other WoW branches.
+note. These materials do not publish a project or certify compatibility with
+other WoW branches.
+
+The project uses the MIT License, with `Copyright (c) 2026 dega.io`.
+Use MIT as the listing's license and include the root `LICENSE` file in release
+archives. Keep the README's scope note and the generated-artwork provenance;
+the project license does not grant rights to Blizzard imagery or trademarks
+in gameplay screenshots.
