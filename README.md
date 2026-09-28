@@ -1,5 +1,9 @@
 # Topline
 
+<p align="center">
+  <img src="docs/branding/topline-logo-v2.png" alt="Topline logo: a glowing brass status rail above slate-blue panels" width="320" height="320">
+</p>
+
 **Your essentials, one glance away.**
 
 Topline is a lightweight information bar for **World of Warcraft: Forever**.
