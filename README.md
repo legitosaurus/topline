@@ -29,7 +29,9 @@ right-click controls. No addon frameworks or additional dependencies required.
   Hover for free slots and a per-bag breakdown. Amber warns at five or fewer free
   slots; red means full.
 - **Durability:** overall equipped-item durability, with per-item details and
-  damaged/broken counts. Amber warns below 30%; red warns below 10%.
+  damaged/broken counts and a lowest-item summary. Amber warns below 30%; red
+  warns below 10%. At a repair vendor, hover for the repair-all cost and whether
+  your carried gold covers it. Repairs remain manual.
 - **Distance traveled:** yards moved today, plus session distance, recorded
   lifetime distance, and recent daily history in the tooltip.
 - **Performance:** FPS and latency, with home/world latency on hover and subtle

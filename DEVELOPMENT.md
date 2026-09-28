@@ -69,6 +69,12 @@ addon does not appear, restart the client so it discovers the folder.
   30% and red below 10%, based on the unrounded aggregate. Tooltip item rows use
   the same thresholds independently, label damaged/broken equipment, and count
   items needing repair plus broken items. Fully repaired items return to neutral.
+  The lowest-item summary compares percentages (ties use the first equipped slot).
+  While a repair merchant is open, the tooltip reads `CanMerchantRepair` and
+  `GetRepairAllCost` for the current repair-all quote, including carried gear,
+  and compares it with personal carried gold. Missing/restricted quotes show N/A;
+  outside a merchant it prompts a vendor visit. Quotes use the existing hover
+  refresh and are never cached or used to perform repairs.
 - `Moved today: 1,234 yd` is horizontal distance traveled today, sampled four
   times a second using `UnitPosition`, with start/stop movement events as well.
   Walking, running, swimming, and ordinary mounted travel count. This measures

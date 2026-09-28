@@ -1422,4 +1422,85 @@ equal(modules.Durability.text, "Durability: 100%")
 equal(Row("Head"), "100 / 100 (100%)")
 equal(Row("Items needing repair"), "0")
 equal(Row("Broken items"), "0")
+-- Lowest durability is a percentage; repair quotes are vendor-only and read-only.
+state, addon, modules, env = NewSession()
+local quoteCalls, repairCalls = 0, 0
+env.CanMerchantRepair = function() return state.repairVendor end
+env.GetRepairAllCost = function() quoteCalls = quoteCalls + 1; return state.repairCost, true end
+env.RepairAllItems = function() repairCalls = repairCalls + 1 end
+Hover("Durability")
+equal(Row("Lowest item"), "Head - 50%")
+equal(Row("Repair all cost"), "Visit a repair vendor")
+equal(quoteCalls, 0, "No quote requested outside merchant")
+state.durability = { [1] = { 8, 10 }, [5] = { 29, 100 } }
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "Chest - |cffd6b36929%|r", "Compare percentages, not points")
+env.GetInventoryItemLink = function(_, slot) if slot == 5 then return "[Chest item]" end end
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "[Chest item] - |cffd6b36929%|r")
+state.durability = { [1] = { 10, 10 }, [5] = { 100, 100 } }
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "Head - 100%", "Fully repaired ties use first slot")
+state.durability = {}
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "N/A")
+state.repairVendor = false
+state:refresh("MERCHANT_SHOW")
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "Vendor cannot repair")
+equal(quoteCalls, 0)
+state.repairVendor, state.repairCost, state.money = true, 12345, 12345
+addon:RefreshInfoTooltip()
+equal(PlainMoney(Row("Repair all cost")), "1g 23s 45c")
+equal(Row("Affordable with carried gold"), "Yes", "Exact balance can afford quote")
+state.money = 12000
+state:refresh("PLAYER_MONEY")
+state:tick(1)
+equal(PlainMoney(Row("Affordable with carried gold")), "No - short 0g 3s 45c")
+state.repairCost = 0
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+addon:RefreshInfoTooltip()
+equal(PlainMoney(Row("Repair all cost")), "0g 0s 0c", "Repair quote updates after repairing")
+state:refresh("MERCHANT_CLOSED")
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "Visit a repair vendor")
+equal(Row("Affordable with carried gold"), nil, "No stale affordability after closing")
+state:refresh("MERCHANT_SHOW")
+env.GetRepairAllCost = false
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "N/A", "Missing quote API")
+env.GetRepairAllCost = function() error("Unavailable quote") end
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "N/A", "Failing quote API")
+env.issecretvalue = function(value) return rawequal(value, secret) end
+env.GetRepairAllCost = function() return secret end
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "N/A", "Restricted quote is never compared")
+env.GetRepairAllCost = function() return 100 end
+env.GetMoney = function() return secret end
+addon:RefreshInfoTooltip()
+equal(Row("Affordable with carried gold"), "N/A")
+env.CanMerchantRepair = function() return secret end
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "N/A", "Restricted merchant flag")
+env.CanMerchantRepair = function() return true end
+for _, cost in ipairs({ -1, math.huge, 0 / 0 }) do
+    env.GetRepairAllCost = function() return cost end
+    addon:RefreshInfoTooltip()
+    equal(Row("Repair all cost"), "N/A", "Invalid quote rejected")
+end
+state.durability = { [1] = { secret, 100 }, [5] = { 0, 100 } }
+state:refresh("UPDATE_INVENTORY_DURABILITY")
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "[Chest item] - |cffd982790%|r")
+equal(modules.Durability.text, "|cffd98279Durability: 0%|r", "Unreadable item skipped")
+env.GetInventoryItemDurability = false
+addon:RefreshInfoTooltip()
+equal(Row("Lowest item"), "N/A", "Missing durability API preserves repair section")
+equal(Row("Repair all cost"), "N/A")
+state:refresh("PLAYER_ENTERING_WORLD")
+addon:RefreshInfoTooltip()
+equal(Row("Repair all cost"), "Visit a repair vendor", "World transition clears vendor state")
+equal(repairCalls, 0, "Tooltip never spends money")
+equal(#state.messages, 0, "Unavailable values do not report provider errors")
 print("Topline: " .. checks .. " offline checks passed (" .. _VERSION .. ").")
